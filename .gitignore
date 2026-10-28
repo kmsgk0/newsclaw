@@ -1,8 +1,27 @@
 .DS_Store
+Thumbs.db
+
+# Local environment
 .env
 .env.*
 !.env.example
+
+# Dependencies and generated output
 node_modules/
 dist/
+build/
+.react-router/
+.cache/
+*.tsbuildinfo
+
+# Test output
 coverage/
+test-results/
+playwright-report/
+
+# Local runtime data and scratch files
+/data/
+/backups/
+/.local/
+/tmp/
 *.log
