@@ -15,6 +15,8 @@
 
 规约面向项目内容，写到开发者能够据此实施和验证的程度。文档修正写清内容和核对方法；工具或功能变更还需说明输入、结果及适用的失败条件。任务包含实施与验证工作，完成对应检查后再勾选。
 
+模型相关工作读取 [AI 应用规范](docs/standards/ai.md)，数据相关工作读取[数据规范](docs/standards/data.md)；其他领域入口见 [AGENTS.md](AGENTS.md#工程规范入口)。
+
 使用 OpenSpec 1.14.3；未全局安装时，下列 `openspec` 命令可用 `npx --yes --package @fission-ai/openspec@1.14.3 openspec` 执行。
 
 ```sh
@@ -38,6 +40,8 @@ openspec instructions apply --change YYYY-MM-DD-change-name
 检查时先从需求核对产物，再从实际 diff 核对改动依据。文档检查事实、链接和条款一致性；工具验证自身的输入、结果与失败行为；应用代码按适用规范检查接口、业务逻辑、数据访问、公共逻辑、错误处理、安全隐私和性能。权限、并发、事务及数据一致性通过对应场景验证。
 
 按[测试规范](docs/standards/testing.md)运行相关检查，说明检查对象、方法、预期和实际结果；任务要求保存的报告按指定位置维护。失败时定位并修正，必要检查无法执行时说明原因并保留相关任务未完成。当前应用尚未实现，运行和业务测试命令由对应实施任务建立并验证。
+
+交付前可按[评审检查表](docs/standards/review.md#检查表)核对适用内容，模型相关行为参考 [AI 评测样例](docs/evaluation/ai-cases.md)。
 
 ```sh
 openspec validate --all --strict --no-interactive

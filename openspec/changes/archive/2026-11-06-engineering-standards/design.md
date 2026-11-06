@@ -2,7 +2,7 @@
 
 ## Context
 
-NewsClaw 已有五类工程规范及统一仓库检查，产品实现尚未开始。开发方法沿用 [contribution-workflow](../../specs/contribution-workflow/spec.md)，本次范围见 [proposal.md](proposal.md)，具体要求见 [spec.md](specs/engineering-standards/spec.md)。
+NewsClaw 已有五类工程规范及统一仓库检查，产品实现尚未开始。开发方法沿用 [contribution-workflow](../../../specs/contribution-workflow/spec.md)，本次范围见 [proposal.md](proposal.md)，具体要求见 [spec.md](specs/engineering-standards/spec.md)。
 
 ## Goals / Non-Goals
 

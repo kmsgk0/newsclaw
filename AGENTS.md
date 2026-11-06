@@ -28,6 +28,9 @@ NewsClaw 是个性化 AI 新闻阅读平台。资讯中心提供共同内容，�
 | 账号、权限、外部输入及依赖 | [安全开发规范](docs/standards/security.md) |
 | 测试与验收 | [测试规范](docs/standards/testing.md) |
 | 构建、配置、发布和恢复 | [部署运维规范](docs/standards/operations.md) |
+| 模型、提示词、技能执行及生成结果 | [AI 应用规范](docs/standards/ai.md)、[评测样例](docs/evaluation/ai-cases.md) |
+| 数据归属、迁移及删除 | [数据规范](docs/standards/data.md) |
+| 变更检查、完成判定及例外 | [评审与完成定义](docs/standards/review.md) |
 
 改变上述合同应同步相关规格、设计、任务及测试。规则冲突先核对需求；有必要的例外直接写入对应规范及适用条件。
 

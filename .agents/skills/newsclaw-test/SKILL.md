@@ -7,6 +7,8 @@ description: Add or update NewsClaw tests from OpenSpec scenarios, including own
 
 Read the repository `AGENTS.md`, `CONTRIBUTING.md`, the relevant OpenSpec requirements, scenarios and tasks, and `docs/standards/testing.md`. For interfaces also read `docs/standards/backend.md`; for private resources read `docs/standards/security.md`.
 
+For model-related work, read the [AI standard](../../../docs/standards/ai.md) and [evaluation examples](../../../docs/evaluation/ai-cases.md). For data changes, read the [data standard](../../../docs/standards/data.md). Use the [review checklist](../../../docs/standards/review.md#检查表) for applicable delivery checks.
+
 1. Inspect the affected implementation and existing test entry points. Identify the covering OpenSpec change, requirement IDs and tasks; complete any missing planning artifacts before changing tests or implementation. Select the smallest suitable test layer. If the intended behavior changes, discuss important changes and update the spec before implementation; defect fixes retain the specified expectations.
 2. Derive normal, failure and boundary expectations from the scenarios. Verify output and relevant stored state; for rejected writes, verify the forbidden side effect did not occur.
 3. Reuse the project's database isolation and deterministic model, source, tool and clock substitutes. Keep fixtures within the tested account and content scope.
