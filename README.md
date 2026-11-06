@@ -15,7 +15,7 @@
 
 - 前端：React Router、TypeScript、Tailwind CSS。
 - 后端与数据：Node.js、Fastify、PostgreSQL。
-- AI 与运行：远程模型 API、MCP 工具、后台任务、Docker Compose。
+- AI 与运行：远程模型 API、MCP 工具、Redis + BullMQ 后台任务、Docker Compose。
 
 ## 项目文档
 
