@@ -2,7 +2,7 @@
 
 个性化 AI 新闻阅读平台。将不同来源的资讯整理到一起，由专属 AI 编辑结合阅读兴趣提供新闻解读、个人日报和持续跟进。
 
-当前仓库包含需求规约、工程规范与自动检查工具，应用功能尚未实现。
+当前仓库包含完整产品规划、工程规范与自动检查工具，应用功能尚未实现。
 
 ## 功能规划
 
@@ -21,9 +21,10 @@
 
 | 内容 | 入口 |
 | --- | --- |
-| 目标与功能范围 | [需求提案](openspec/changes/2026-10-28-newsclaw-foundation/proposal.md) |
-| 架构与数据关系 | [技术设计](openspec/changes/2026-10-28-newsclaw-foundation/design.md) |
-| 能力规格与实施顺序 | [任务清单及规格索引](openspec/changes/2026-10-28-newsclaw-foundation/tasks.md) |
+| 目标与完整需求 | [产品规划与能力索引](docs/product/README.md) |
+| 架构与数据关系 | [总体设计](docs/product/design.md) |
+| 实施安排与后续任务 | [实施路线图](docs/product/roadmap.md) |
+| 已交付合同与当前变更 | [现行规格](openspec/specs/)、[变更目录](openspec/changes/) |
 | 开发规则与工程规范 | [AGENTS.md](AGENTS.md#工程规范入口) |
 | 规约、实施、验证与开发记录 | [开发指南](CONTRIBUTING.md) |
 | 模型行为与评测样例 | [AI 应用规范](docs/standards/ai.md)、[AI 评测样例](docs/evaluation/ai-cases.md) |

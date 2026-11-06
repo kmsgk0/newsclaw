@@ -1,6 +1,6 @@
 # 数据规范
 
-NewsClaw 的数据关系见[技术设计](../../openspec/changes/2026-10-28-newsclaw-foundation/design.md#2-数据关系)，查询、唯一约束和事务沿用[后端规范](backend.md)。
+NewsClaw 的数据关系见[技术设计](../product/design.md#2-数据关系)，查询、唯一约束和事务沿用[后端规范](backend.md)。
 
 ## 数据范围
 

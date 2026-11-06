@@ -2,7 +2,7 @@
 
 ## Context
 
-NewsClaw 的产品范围见 [proposal.md](proposal.md)。系统以共享新闻库连接编辑、技能和专题，来源信息必须在检索、回答、时间线及图谱之间保持一致。个人会话、偏好和阅读记录归属用户，公共管理权限与私人数据访问分别判定。
+NewsClaw 的产品范围见 [产品范围](README.md)。系统以共享新闻库连接编辑、技能和专题，来源信息必须在检索、回答、时间线及图谱之间保持一致。个人会话、偏好和阅读记录归属用户，公共管理权限与私人数据访问分别判定。
 
 ## Goals / Non-Goals
 
@@ -68,7 +68,7 @@ RSS、公开 API 和网页内容进入统一报道格式。处理依次完成规
 
 ### 6. 接口与工程合同
 
-接口、错误码、输入限制和幂等约定见 [后端规范](../../../docs/standards/backend.md)；页面及状态见 [产品规范](../../../docs/standards/product.md)；访问与输入边界见 [安全规范](../../../docs/standards/security.md)。测试按 [测试规范](../../../docs/standards/testing.md)从需求场景生成；构建和恢复按 [运维规范](../../../docs/standards/operations.md)执行。
+接口、错误码、输入限制和幂等约定见 [后端规范](../standards/backend.md)；页面及状态见 [产品规范](../standards/product.md)；访问与输入边界见 [安全规范](../standards/security.md)。测试按 [测试规范](../standards/testing.md)从需求场景生成；构建和恢复按 [运维规范](../standards/operations.md)执行。
 
 ## Risks / Trade-offs
 

@@ -1,6 +1,6 @@
 # AI 应用规范
 
-本规范适用于新闻处理、专属编辑和阅读技能。产品行为见[基础能力规格](../../openspec/changes/2026-10-28-newsclaw-foundation/tasks.md#能力与场景索引)，接口与权限沿用[后端规范](backend.md)和[安全规范](security.md)。
+本规范适用于新闻处理、专属编辑和阅读技能。产品行为见[产品需求](../product/README.md#能力与场景索引)，接口与权限沿用[后端规范](backend.md)和[安全规范](security.md)。
 
 ## 基本约定
 
