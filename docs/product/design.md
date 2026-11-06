@@ -117,7 +117,7 @@ BullMQ 负责续锁和 stalled 检测。进程退出或失去锁后由它安排�
 
 接收事务中途失败时核对业务、任务和待投递记录一并回滚；结果提交失败时核对原有成功内容、任务状态与处理位置。另复核查询无副作用、私人任务隔离、有限重试、死信恢复和迟到结果，分别对应运行需求中的场景。
 
-首次手工复现后，将判据固化为 `apitest/cases/` 用例并接入 `make check`，复用现有 npm 检查入口。运行记录写入根目录 `reports/`，包含环境、版本、命令、实际响应、任务状态、数据库断言与结论；并发和事务记录分别使用 `reports/risk-concurrency.md`、`reports/risk-transaction.md`。同时保存队列等待数量、消费耗时、尝试次数和死信数量，并用版本标签关联已验证的交付。当前这些用例与运行报告均待实现后执行。
+首次手工复现后，将判据固化为 `apitest/cases/` 用例并接入现有 `npm run check` 入口。运行记录写入根目录 `reports/`，包含环境、版本、命令、实际响应、任务状态、数据库断言与结论；并发和事务记录分别使用 `reports/risk-concurrency.md`、`reports/risk-transaction.md`。同时保存队列等待数量、消费耗时、尝试次数和死信数量，并用版本标签关联已验证的交付。当前这些用例与运行报告均待实现后执行。
 
 Redis 持久化及淘汰策略沿用 [BullMQ 运行说明](https://docs.bullmq.io/guide/going-to-production)，重试与失锁恢复分别参考[失败重试](https://docs.bullmq.io/guide/retrying-failing-jobs)和[中断任务恢复](https://docs.bullmq.io/guide/jobs/stalled)。
 
