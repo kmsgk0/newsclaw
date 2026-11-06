@@ -6,12 +6,23 @@ context: |
   Keep OpenSpec structural headings and SHALL/MUST keywords in English.
   NewsClaw is a personalized AI news reading platform.
   Stack: React Router, TypeScript, Tailwind CSS, Node.js, Fastify, PostgreSQL, Docker Compose.
-  Read AGENTS.md and the applicable docs/standards files before editing artifacts.
+  Read AGENTS.md, CONTRIBUTING.md and the applicable docs/standards files before editing artifacts.
+  All repository changes, including tools, configuration and documentation, use OpenSpec before implementation.
+  Before implementation, ensure the proposal, design, scenarios and tasks cover the intended changes.
+  Write artifacts as standalone project documents for developers, with concrete scope, behavior and verification criteria.
+  Discuss unclear requirements or important design changes and update the specs; handle ordinary implementation details directly.
+  Check requirement coverage and the actual diff, report verification honestly, and archive after implementation tasks and required checks are complete.
+  Commits describe the change and identify the corresponding OpenSpec change and requirements or tasks.
   Use one shared news library, one editor per user, and account ownership for private content.
 rules:
+  proposal:
+    - State the problem, scope and affected areas; reuse existing requirements where they cover the change.
+  design:
+    - Explain the approach and relevant trade-offs at a depth proportional to the change.
   specs:
     - Give each requirement a stable identifier and observable GIVEN/WHEN/THEN scenarios.
     - Cover applicable input, permission, missing-resource and dependency failures.
   tasks:
-    - Associate implementation tasks with requirement identifiers and a verification method.
+    - Track implementation and verification work; associate each task with requirement identifiers and a verification method.
     - Keep unimplemented and unverified tasks unchecked.
+    - For documentation changes, verify content, links and consistency without adding unrelated runtime tests.
