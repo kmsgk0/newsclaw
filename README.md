@@ -2,7 +2,7 @@
 
 个性化 AI 新闻阅读平台。将不同来源的资讯整理到一起，由专属 AI 编辑结合阅读兴趣提供新闻解读、个人日报和持续跟进。
 
-当前仓库包含需求规约与工程规范，应用功能尚未实现。
+当前仓库包含完整产品规划、工程规范与自动检查工具，应用功能尚未实现。
 
 ## 功能规划
 
@@ -21,21 +21,29 @@
 
 | 内容 | 入口 |
 | --- | --- |
-| 目标与功能范围 | [需求提案](openspec/changes/2026-10-28-newsclaw-foundation/proposal.md) |
-| 架构与数据关系 | [技术设计](openspec/changes/2026-10-28-newsclaw-foundation/design.md) |
-| 能力规格与实施顺序 | [任务清单及规格索引](openspec/changes/2026-10-28-newsclaw-foundation/tasks.md) |
-| 开发规则与五类工程规范 | [AGENTS.md](AGENTS.md) |
+| 目标与完整需求 | [产品规划与能力索引](docs/product/README.md) |
+| 架构与数据关系 | [总体设计](docs/product/design.md) |
+| 实施安排与后续任务 | [实施路线图](docs/product/roadmap.md) |
+| 已交付合同与当前变更 | [现行规格](openspec/specs/)、[变更目录](openspec/changes/) |
+| 开发规则与工程规范 | [AGENTS.md](AGENTS.md#工程规范入口) |
+| 规约、实施、验证与开发记录 | [开发指南](CONTRIBUTING.md) |
+| 模型行为与评测样例 | [AI 应用规范](docs/standards/ai.md)、[AI 评测样例](docs/evaluation/ai-cases.md) |
+| 数据管理与变更检查 | [数据规范](docs/standards/data.md)、[评审与完成定义](docs/standards/review.md) |
+| 本地与 PR 自动检查 | [仓库检查](docs/checks.md) |
 
 ## 查看与校验
 
-安装 Node.js 20.19.0 或以上版本后，可以克隆仓库并校验 OpenSpec 文档：
+安装 Node.js 20.19.0 或以上版本后，可以克隆仓库并安装检查工具：
 
 ```sh
 git clone https://github.com/kmsgk0/newsclaw.git
 cd newsclaw
-npx --yes --package @fission-ai/openspec@1.14.3 openspec validate --all --strict --no-interactive
+npm ci --ignore-scripts --no-audit --no-fund
+npm run check:specs
 ```
+
+完整检查使用 `npm run check -- --base main`，需先准备 Gitleaks；安装方式、各检查项及失败处理见[仓库检查](docs/checks.md)。面向 `main` 的 PR 自动执行仓库检查和安全检查。
 
 ## 协作
 
-改动先对照相关需求与工程规范，通过 Pull Request 合入 `main`。提交使用 Conventional Commits；实现及对应验证完成后再勾选任务。环境配置、运行数据和测试产物不进入版本管理，依赖锁文件与无密钥配置示例需要保留。
+按[开发指南](CONTRIBUTING.md)准备规约、完成实现和验证，并同步任务状态；全部任务完成后整理现行规格与归档材料。提交使用 Conventional Commits，说明改动及对应规约。环境配置、运行数据和生成型测试产物不进入版本管理，依赖锁文件与无密钥配置示例需要保留；任务要求的脱敏评审与运行记录按指定位置保存。

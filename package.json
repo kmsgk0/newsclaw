@@ -1,0 +1,23 @@
+{
+  "name": "newsclaw",
+  "private": true,
+  "type": "module",
+  "description": "Repository tooling for NewsClaw",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "check:repo": "node scripts/check-repository.mjs",
+    "check:specs": "openspec validate --all --strict --no-interactive",
+    "check:commits": "node scripts/check-commits.mjs",
+    "check:security": "node scripts/check-security.mjs",
+    "test:checks": "node --test scripts/test-checks.mjs",
+    "test:security": "node --test scripts/test-security.mjs"
+  },
+  "devDependencies": {
+    "@fission-ai/openspec": "1.14.3",
+    "github-slugger": "2.0.0",
+    "markdown-it": "15.0.3"
+  }
+}

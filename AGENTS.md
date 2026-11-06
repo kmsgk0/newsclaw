@@ -4,9 +4,11 @@ NewsClaw 是个性化 AI 新闻阅读平台。资讯中心提供共同内容，�
 
 ## 需求与设计
 
-使用 OpenSpec 管理功能需求。当前功能定义见 [项目基础能力变更](openspec/changes/2026-10-28-newsclaw-foundation/proposal.md)，技术设计见同目录 [design.md](openspec/changes/2026-10-28-newsclaw-foundation/design.md)。变更中的规格描述目标行为，实施状态以 `tasks.md` 为准；`openspec/specs/` 保存实施验收后归档的现行规格。
+所有仓库修改都纳入 OpenSpec，包括业务代码、页面、工具、依赖、配置、CI、文档和工程规范。完整目标需求见[产品规划](docs/product/README.md)，架构与数据关系见[总体设计](docs/product/design.md)，后续任务见[实施路线图](docs/product/roadmap.md)。活动变更只描述本轮交付范围，实施状态以该变更的 `tasks.md` 为准；`openspec/specs/` 保存已实现并验证的现行规格。
 
-改动前读取相关需求和 Scenario，按 `tasks.md` 的依赖顺序执行。完成对应实现与验证后才勾选任务；结构校验不能替代行为验收。功能未实施完毕时保留活动变更，完成后再同步和归档。
+改动前读取相关产品需求、现行规格、活动变更和工程规范，确认本次内容已由提案、设计、需求场景及任务覆盖；缺少对应内容时先补齐，再开始实施。已有活动变更覆盖的内容直接沿用；新增变更从产品规划中选取可交付范围并保留需求编号，相关页面、测试和文档一起完成。需求不清或方案有重要变化时，先讨论并更新规约，普通实现细节自行处理。
+
+对照需求检查产物，并从实际 diff 核对每项改动的规约依据。完成对应实现与规定验证后才勾选任务；当前变更的全部任务完成后同步主规格并归档。产品入口对已交付需求维护编号、摘要和现行规格链接，路线图关联相应变更，剩余目标继续保留在产品规划中。继续实施的变更有未完成内容时保留活动状态；已由产品文档完整承接的规划变更可保留原状态归档，跳过未实现规格的同步。结构校验与实际行为验证分别记录。
 
 ## 开发规则
 
@@ -26,22 +28,29 @@ NewsClaw 是个性化 AI 新闻阅读平台。资讯中心提供共同内容，�
 | 账号、权限、外部输入及依赖 | [安全开发规范](docs/standards/security.md) |
 | 测试与验收 | [测试规范](docs/standards/testing.md) |
 | 构建、配置、发布和恢复 | [部署运维规范](docs/standards/operations.md) |
+| 模型、提示词、技能执行及生成结果 | [AI 应用规范](docs/standards/ai.md)、[评测样例](docs/evaluation/ai-cases.md) |
+| 数据归属、迁移及删除 | [数据规范](docs/standards/data.md) |
+| 变更检查、完成判定及例外 | [评审与完成定义](docs/standards/review.md) |
 
 改变上述合同应同步相关规格、设计、任务及测试。规则冲突先核对需求；有必要的例外直接写入对应规范及适用条件。
 
 ## 工具与工作流
 
-使用 OpenSpec 1.14.3。未安装全局 CLI 时，可用 `npx --yes --package @fission-ai/openspec@1.14.3 openspec` 执行下列命令。
+项目依赖固定 OpenSpec 1.14.3。先运行 `npm ci --ignore-scripts --no-audit --no-fund` 安装工具，通过下列入口查看与校验：
 
 ```sh
-openspec status --change 2026-10-28-newsclaw-foundation
-openspec validate --all --strict --no-interactive
+npx openspec list
+npm run check:specs
 ```
 
 OpenSpec 工作流技能位于 `.agents/skills/openspec-*/`。补测试使用 [newsclaw-test](.agents/skills/newsclaw-test/SKILL.md)，发布与恢复使用 [newsclaw-release](.agents/skills/newsclaw-release/SKILL.md)。调用工作流时仍以当前请求授权的范围为准。
 
 业务实现建立后，统一提供 `npm run lint`、`npm run typecheck`、`npm test`、`npm run test:api`、`npm run test:e2e` 和 `npm run build`，并在 README 说明配置及运行方法；命令可用性须由实际执行确认。
 
-## 协作
+本地与 PR 自动检查见[仓库检查](docs/checks.md)。交付前运行 `npm run check -- --base main`，提交正文使用 `OpenSpec:` 及 `Requirements:` 或 `Tasks:` 关联依据。
 
-主分支为 `main`，实现应保持可启动。功能改动关联 OpenSpec 变更，名称采用日期和小写英文短名。提交使用 Conventional Commits，并说明对应能力；通过相关检查后合入主分支。
+## 文档与开发记录
+
+README 介绍产品、实际进度与使用入口；[开发指南](CONTRIBUTING.md)维护开发方法和命令；工程规范定义各领域的实现要求与检查方式。文档面向使用者和开发者，直接说明项目内容、目标行为及使用条件，操作步骤集中维护并通过链接引用。
+
+主分支为 `main`，实现应保持可启动。OpenSpec 变更名称采用日期和小写英文短名。提交使用 Conventional Commits，说明实际改动、对应变更及相关需求或任务。检查结果随交付说明，任务要求保存的记录按指定位置维护。
