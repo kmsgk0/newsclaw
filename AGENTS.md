@@ -31,6 +31,7 @@ NewsClaw 是个性化 AI 新闻阅读平台。资讯中心提供共同内容，�
 | 模型、提示词、技能执行及生成结果 | [AI 应用规范](docs/standards/ai.md)、[评测样例](docs/evaluation/ai-cases.md) |
 | 数据归属、迁移及删除 | [数据规范](docs/standards/data.md) |
 | 变更检查、完成判定及例外 | [评审与完成定义](docs/standards/review.md) |
+| 安全自查、风险复核与检查记录 | [安全检查方法](docs/security-checks.md)、[报告索引](reports/README.md) |
 
 改变上述合同应同步相关规格、设计、任务及测试。规则冲突先核对需求；有必要的例外直接写入对应规范及适用条件。
 
@@ -48,6 +49,8 @@ OpenSpec 工作流技能位于 `.agents/skills/openspec-*/`。补测试使用 [n
 业务实现建立后，统一提供 `npm run lint`、`npm run typecheck`、`npm test`、`npm run test:api`、`npm run test:e2e` 和 `npm run build`，并在 README 说明配置及运行方法；命令可用性须由实际执行确认。
 
 本地与 PR 自动检查见[仓库检查](docs/checks.md)。交付前运行 `npm run check -- --base main`，提交正文使用 `OpenSpec:` 及 `Requirements:` 或 `Tasks:` 关联依据。
+
+代码审查按[七类核查](docs/standards/review.md#七类核查)检查接口入口、业务逻辑、数据库、公共函数、错误处理、安全隐私和性能，记录适用手段及依据；权限、并发、事务和数据一致性单独核对。
 
 ## 文档与开发记录
 

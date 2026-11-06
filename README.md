@@ -15,7 +15,7 @@
 
 - 前端：React Router、TypeScript、Tailwind CSS。
 - 后端与数据：Node.js、Fastify、PostgreSQL。
-- AI 与运行：远程模型 API、MCP 工具、后台任务、Docker Compose。
+- AI 与运行：远程模型 API、MCP 工具、Redis + BullMQ 后台任务、Docker Compose。
 
 ## 项目文档
 
@@ -30,6 +30,7 @@
 | 模型行为与评测样例 | [AI 应用规范](docs/standards/ai.md)、[AI 评测样例](docs/evaluation/ai-cases.md) |
 | 数据管理与变更检查 | [数据规范](docs/standards/data.md)、[评审与完成定义](docs/standards/review.md) |
 | 本地与 PR 自动检查 | [仓库检查](docs/checks.md) |
+| 安全检查与实际记录 | [检查方法](docs/security-checks.md)、[报告索引](reports/README.md) |
 
 ## 查看与校验
 

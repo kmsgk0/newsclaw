@@ -1,0 +1,105 @@
+Date: 2026-11-06T14:14:51+08:00
+Base commit: 8b66aba1b81c50888da6b0b460fe01759cd7fb64
+Scope: working tree and existing repository tools
+Command: npm run check -- --base origin/main
+Exit code: 0
+Redaction: terminal colors, local paths and SSH aliases removed or replaced.
+
+
+> check
+> node scripts/check.mjs --base origin/main
+
+
+Running check:specs
+
+> check:specs
+> openspec validate --all --strict --no-interactive
+
+✓ change/2026-11-06-security-review
+✓ spec/contribution-workflow
+✓ spec/engineering-standards
+Totals: 3 passed, 0 failed (3 items)
+
+Running check:repo
+
+> check:repo
+> node scripts/check-repository.mjs --base origin/main
+
+Repository checks passed: 86 files, 26 changed paths, base 387fcd559ee4e59a9845465a4a08deeaebfeca50.
+
+Running check:commits
+
+> check:commits
+> node scripts/check-commits.mjs --base origin/main --head HEAD
+
+Commit references passed: 1 non-merge commits, base 387fcd559ee4e59a9845465a4a08deeaebfeca50, head 8b66aba1b81c50888da6b0b460fe01759cd7fb64.
+
+Running test:checks
+
+> test:checks
+> node --test scripts/test-checks.mjs
+
+✔ FLOW-07 valid links, images, duplicate heading anchors and hidden documents pass (237.928167ms)
+✔ FLOW-07 rejects hidden broken link (234.148917ms)
+✔ FLOW-07 rejects missing anchor (229.418042ms)
+✔ FLOW-07 rejects conflict marker (229.435833ms)
+✔ FLOW-07 rejects untracked whitespace error (226.883875ms)
+✔ FLOW-07 rejects parent directory link (228.4565ms)
+✔ FLOW-07 rejects outside link (245.439958ms)
+✔ FLOW-07 rejects a link whose target exists only in ignored files (230.484459ms)
+✔ FLOW-07 rejects a local link that resolves outside the repository through a symlink (302.108083ms)
+✔ FLOW-07 the real OpenSpec validator rejects a requirement without a scenario (224.874584ms)
+✔ FLOW-08 specification and implementation commits resolve requirements and task references (336.993917ms)
+✔ FLOW-08 archived change references remain valid (342.561375ms)
+✔ FLOW-08 rejects missing reference (258.913292ms)
+✔ FLOW-08 rejects unknown requirement (272.375875ms)
+✔ FLOW-08 rejects unknown task (273.748834ms)
+✔ FLOW-08 rejects invalid title (273.226708ms)
+✔ FLOW-08 adding specs later cannot validate an earlier implementation commit (316.540958ms)
+✔ FLOW-08 rejects incomplete planning artifacts and invalid bases (369.107375ms)
+✔ FLOW-06 platform merge commits are excluded while developer commits are checked (303.08225ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5236.933625
+
+Running check:security
+
+> check:security
+> node scripts/check-security.mjs
+
+2:14PM INF Unknown SCM platform. Use --platform to include links in findings. host=[SSH_ALIAS]
+2:14PM INF 9 commits scanned.
+2:14PM INF scanned ~449509 bytes (449.51 KB) in 130ms
+2:14PM INF no leaks found
+2:14PM INF scanned ~425970 bytes (425.97 KB) in 9.67ms
+2:14PM INF no leaks found
+Secret scan passed for reachable Git history and tracked/unignored current files.
+found 0 vulnerabilities
+Dependency audit passed for the current lockfile, including development tools.
+
+Running test:security
+
+> test:security
+> node --test scripts/test-security.mjs
+
+✔ FLOW-09 clean repository passes and current/historical synthetic credentials fail with redacted output (1683.912708ms)
+✔ FLOW-09 ignored local files are excluded unless explicitly requested (1932.248833ms)
+✔ FLOW-09 missing scanner fails explicitly (177.346542ms)
+✔ FLOW-10 audit command clean determines the security result (2029.040792ms)
+✔ FLOW-10 audit command high determines the security result (1103.743333ms)
+✔ FLOW-10 audit command unavailable determines the security result (1077.584792ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8101.052458
+
+All repository checks passed.

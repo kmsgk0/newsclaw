@@ -25,13 +25,13 @@
 | [个人编辑](requirements/personal-editor.md) | 连续问答、MCP、个性化日报、兴趣、长期记忆和编辑手记。 EDITOR-01 至 EDITOR-06 | 19 |
 | [阅读技能](requirements/editor-skills.md) | 内置技能、个人副本、选择执行、发布与管理。 SKILL-01 至 SKILL-04 | 13 |
 | [专题与洞察](requirements/topics-and-insights.md) | 热点、专题、提醒、时间线、图谱、成果及分享。 TOPIC-01 至 TOPIC-06 | 19 |
-| [运行与恢复](requirements/runtime-operations.md) | 后台执行、配置、健康检查、日志、验证和部署恢复。 OPS-01 至 OPS-05 | 16 |
+| [运行与恢复](requirements/runtime-operations.md) | 后台执行、配置、健康检查、日志、验证和部署恢复。 OPS-01 至 OPS-05 | 32 |
 
-六组目标需求共 32 条 Requirement、99 个 Scenario，包含正常、失败与边界行为。需求编号用于关联设计、实施任务和验证依据。
+六组目标需求共 32 条 Requirement、115 个 Scenario，包含正常、失败与边界行为。需求编号用于关联设计、实施任务和验证依据。
 
 ## 技术组成
 
-采用 React Router 前端、Fastify API、共享业务服务和后台执行器。PostgreSQL 保存公共内容、私人数据、检索数据和任务记录；远程模型提供摘要、翻译、嵌入和问答能力。Docker Compose 负责应用与数据库运行，工程合同见[项目规则](../../AGENTS.md)和[工程规范](../standards/)。
+采用 React Router 前端、Fastify API、共享业务服务和后台 Worker。PostgreSQL 保存公共内容、私人数据、检索数据和任务记录，Redis + BullMQ 管理队列执行；远程模型提供摘要、翻译、嵌入和问答能力。Docker Compose 负责 API、Worker、PostgreSQL 与 Redis 运行，工程合同见[项目规则](../../AGENTS.md)和[工程规范](../standards/)。
 
 架构、数据关系及共享业务约定见[总体设计](design.md)，建议交付顺序与实施任务见[路线图](roadmap.md)。
 

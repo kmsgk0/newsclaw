@@ -69,6 +69,8 @@ npm run check:security -- dist .local/runtime.log
 
 工具测试使用临时 Git 仓库和合成密钥，检查当前文件、历史记录、忽略文件及输出脱敏。依赖审计的异常用例使用可控进程替身；正常安全检查调用真实 npm 审计服务。
 
+业务身份、权限和风险检查见[安全检查方法](security-checks.md)。正式结果与脱敏证据通过[报告索引](../reports/README.md)查阅，报告注明版本、范围、命令和实际结果。
+
 ## GitHub Actions
 
 [PR workflow](../.github/workflows/pr-checks.yml)在面向 `main` 的 PR 创建、提交更新和重新打开时运行，仅申请 `contents: read` 权限。
