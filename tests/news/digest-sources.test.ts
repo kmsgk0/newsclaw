@@ -47,6 +47,7 @@ test('NEWS-06/EDITOR-04/06 digest labels preserve news identity and reject unkno
     const daily = await repository.digests(env.a.id), journal = await repository.journals(env.a.id);
     const publicDaily = await new NewsRepository(env.ctx.db).digests(date);
     assert.equal(daily.length,1);
+    assert.match(daily[0].content,/^本期采用当日精选。/);
     assert.equal(journal.length,1);
     assert.deepEqual(daily[0].sources.map((source:{id:string})=>source.id),[env.newsId]);
     assert.deepEqual(journal[0].sources.map((source:{id:string})=>source.id),[env.newsId]);

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { Actor, AppContext } from '../../context.js';
 import { AppError, invalid, notFound, unavailable } from '../../errors.js';
 import { createNewsMcp } from '../../adapters/mcp.js';
-import { emptyUsage, type ChatMessage, type ModelUsage } from '../../adapters/model.js';
+import { emptyUsage, ModelError, type ChatMessage, type ModelUsage } from '../../adapters/model.js';
 import { NewsService } from '../news/service.js';
 import type { MaterialScope, NewsItem } from '../news/types.js';
 import { mindmapSchema, validateMindmap } from '../topics/validation.js';
@@ -90,7 +90,8 @@ export class EditorService {
           instructions: `${skill.instructions} 每个节点，包括根节点，都必须填写至少一个实际输入新闻的 UUID 作为 sourceIds。不得使用 N1 等显示编号代替 UUID。只组织提供材料支持的事实；未知价格等信息写为未公布。`,
           profile, materials: prepared.materials, request: input.content,
         }, mindmapSchema, signal);
-        const tree = validateMindmap(generated.value, prepared.materials.map(item => item.id)); usage = generated.usage;
+        usage = generated.usage;
+        const tree = validateMindmap(generated.value, prepared.materials.map(item => item.id));
         text = `${tree.label}\n\n${tree.children?.map(node => `- ${node.label}`).join('\n') ?? ''}`;
         artifact = { title: tree.label, kind: 'mindmap', content: text, structure: tree, skillId: skill.id, sourceIds: prepared.materials.map(item => item.id), messageId, sourceSnapshots: sourceSnapshots(prepared.materials, sources) };
         emit('text', { text }); emit('artifact', { artifact });
@@ -154,6 +155,7 @@ export class EditorService {
       this.ctx.logger.info({ module: 'editor', requestId, actorId: actor.id, objectId: conversationId, operation: 'answer', skillId: skill?.id ?? null, result: 'succeeded', durationMs: Date.now() - started, usage }, 'editor.answer');
       emit('complete', { messageId, status: 'completed', sources, artifact, skill: skill ? { id: skill.id, name: skill.name } : null });
     } catch (error) {
+      if (error instanceof ModelError && error.usage) usage = error.usage;
       const safe = error instanceof AppError ? error : unavailable('本次回答未完成，请重试');
       const failure = { status: safe.status, code: safe.code, message: safe.message, ...(requestId ? { requestId } : {}) };
       await this.repository.finish(actor.id, conversationId, messageId, { content: text, status: 'failed', sources, usage, error: failure });

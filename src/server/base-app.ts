@@ -14,7 +14,7 @@ export async function createBaseApp(ctx:AppContext) {
   const app=Fastify({genReqId:()=>randomUUID(),loggerInstance:ctx.logger as FastifyBaseLogger,disableRequestLogging:true,ajv:{customOptions:{removeAdditional:false,coerceTypes:true}}});
   await app.register(cookie);
   const envelope={type:'object',properties:{code:{type:'string'},message:{type:'string'},data:{},requestId:{type:'string'}}};
-  await app.register(swagger,{openapi:{info:{title:'NewsClaw API',version:ctx.config.version},components:{securitySchemes:{bearerAuth:{type:'http',scheme:'bearer'}}}},transform:({schema,url,route})=>({url,schema:{...schema,security:route.config?.public?[]:[{bearerAuth:[]}],response:schema.response??{200:envelope,400:envelope,401:envelope,403:envelope,404:envelope,409:envelope,503:envelope}}})});
+  await app.register(swagger,{openapi:{info:{title:'NewsClaw API',version:ctx.config.version},components:{securitySchemes:{bearerAuth:{type:'http',scheme:'bearer'}}}},transform:({schema,url,route})=>({url,schema:{...schema,security:route.config?.public?[]:[{bearerAuth:[]}],response:schema?.response??{200:envelope,400:envelope,401:envelope,403:envelope,404:envelope,409:envelope,503:envelope}}})});
   await app.register(swaggerUi,{routePrefix:'/docs/api'});
   app.decorateRequest('actor',null);app.decorateRequest('sessionId',null);
   const auth=new AuthService(ctx.db);

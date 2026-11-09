@@ -65,7 +65,7 @@ Gitleaks 使用 PATH 中的同名程序，也支持 `GITLEAKS_BIN`。从 [Gitlea
 
 `scripts/checks/stages.mjs` 是唯一检查清单，npm、Make、容器及 CI 调用 `scripts/checks/check.mjs`。单项命令选择同一阶段，不重复维护断言和执行顺序。Node 使用测试事件采集结果，Playwright 输出 JSON 与原生 HTML；阶段日志保留原始诊断。
 
-SEC-07 用量检查默认包含在 Docker 验收、`make check` 和 CI 的 application 组中，也可通过上表的 usage 阶段单独执行。复用 `tests/evaluation/usage-recording.ts` 和本地 HTTP 模型替身，分别检查正常与结构失败时的用量，不调用真实模型。当前结构失败场景未保存已返回的用量，因此阶段及整轮验收失败，退出码为 1；报告中显示两个场景的实际结果，附件保留本轮 `usage-recording.json`。判据见[首次 SEC-07 记录](../../reports/security-precheck.md#sec-07-失败调用用量)。
+SEC-07 用量检查默认包含在 Docker 验收、`make check` 和 CI 的 application 组中，也可通过上表的 usage 阶段单独执行。复用 `tests/evaluation/usage-recording.ts` 和本地 HTTP 模型替身，分别检查正常与结构失败时的用量，不调用真实模型。成功与结构失败场景都应保存模型已提供的用量，任一不符合判据时阶段及整轮验收失败，退出码为 1；报告显示两个场景的实际结果，附件保留本轮 `usage-recording.json`。首次现象及后续处理见[修复记录](../../reports/security-fix-log.md)。OpenAPI 定义与页面分别由 API 和浏览器阶段检查。
 
 单项执行需要保存报告时设置 `VERIFICATION_DIR`；直接运行 `node --import tsx tests/evaluation/usage-recording.ts` 也保留原入口，未设置 `VERIFICATION_DIR` 时使用 `EVALUATION_DIR` 或 `.local/verification/`。真实模型评测单独启用，方法见[AI 样例](ai-cases.md)。
 

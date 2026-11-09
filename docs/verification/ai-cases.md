@@ -1,6 +1,6 @@
 # AI 评测样例
 
-以下 12 条样例用于检查 NewsClaw 的新闻解读和相关行为。按[测试规范](../standards/testing.md)选择执行方式，实际输入、输出和判断见 [AI 行为检查](ai-results.md)。样例定义与每次运行结果分别维护。
+以下 13 条样例用于检查 NewsClaw 的新闻解读和相关行为。按[测试规范](../standards/testing.md)选择执行方式，实际输入、输出和判断见 [AI 行为检查](ai-results.md)。样例定义与每次运行结果分别维护。
 
 ## 示例材料
 
@@ -30,7 +30,14 @@
 | AI-10 | 工具失败；EDITOR-02、EDITOR-03 | 查询相关报道时工具服务不可用 | 明确报告失败，不把故障说成没有新闻，不编造回答依据 |
 | AI-11 | 导图校验；TOPIC-04 | 使用 N1 生成导图，并检查结构错误或引用不存在报道的结果 | 有效导图可查看和保存；无效结果明确失败，已有成果保留 |
 | AI-12 | 图谱依据；TOPIC-05 | 仅提供 N1，检查发布关系及无依据的收购关系 | 发布关系关联 N1；没有材料支持的收购关系不能作为新闻事实发布 |
+| AI-13 | 个人日报；EDITOR-04 | 分别提供条件性人事变动、明确 SDK 发布计划及无兴趣设置 | 保留事实和不确定性，兴趣关联摘录实际偏好与原文，不补写技术计划或收益；无兴趣时采用当日精选 |
 
 需求详情见[个人编辑](../../openspec/specs/personal-editor/spec.md)、[阅读技能](../../openspec/specs/editor-skills/spec.md)、[新闻库](../../openspec/specs/news-library/spec.md)和[专题与洞察](../../openspec/specs/topics-and-insights/spec.md)。
 
 执行后简要记录所用版本、实际输出及通过或失败结论。权限、调用和保存行为检查实际结果，不能只凭模型自述；未执行的样例保持未执行。调用约定见 [AI 应用规范](../standards/ai.md)。
+
+## 个人日报对照
+
+`RUN_LIVE_AI=1 node --import tsx tests/evaluation/digest-evaluation.ts` 使用当前模型配置，默认执行三条合成样例：人员正在考虑离岗但未决定；SDK 2.0 将于 2026 年 11 月 20 日发布并提供批量推理接口；同一 SDK 材料在未填写兴趣时生成。完整材料和判据保存在[评测入口](../../tests/evaluation/digest-evaluation.ts)。
+
+`DIGEST_INPUT_FILE` 可指定包含 `input` 的 JSON，输入包括 `date`、`profile`、`memories` 和 `materials`；生成约束始终取当前应用实现。`EVALUATION_DIR` 指定输出目录，结果保存为 `digest-results.json`。程序检查结构、来源及兴趣关联片段，`contentReview` 保持 pending，需另按材料核对语义并在正式报告中记录判断。

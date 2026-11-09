@@ -49,6 +49,7 @@ export async function editorEnvironment() {
     else if (purpose.includes('bilingual-reading')) result = {paragraphs:(data.paragraphs as {id:string}[]).map(item=>({paragraphId:state.mode==='bad-bilingual'?'P999':item.id,translation:'云杉引擎于2026年10月10日开放试用，商业价格尚未公布。',expressions:[]}))};
     else if (purpose.includes('public-digest')) result = {title:'今日新闻',content:'云杉引擎开放试用，商业价格尚未公布 [N1]。',sourceLabels};
     else if (purpose.includes('reading-journal')) result = {content:'今天关注了云杉引擎的试用与测试条件 [N1]。',sourceLabels,memories:state.memories};
+    else if (purpose.includes('personal-digest') && state.mode === 'unsupported-interest') result = {content:'云杉引擎开放试用 [N1]。',sourceLabels,interestMatches:[{sourceLabel:'N1',preference:'人工智能',quote:'架构变更将直接提升推理性能。'}]};
     else result = {content:'今日精选：云杉引擎开放试用，商业价格尚未公布 [N1]。',sourceLabels};
     res.setHeader('content-type','application/json'); res.end(JSON.stringify({choices:[{message:{content:JSON.stringify(result)}}],usage:{prompt_tokens:10,completion_tokens:20,total_tokens:30}}));
   });
