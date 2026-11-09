@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { EditorService, validateCitations } from '../../src/server/modules/editor/service.js';
 import { EditorRepository } from '../../src/server/modules/editor/repository.js';
+import { SkillsService } from '../../src/server/modules/skills/service.js';
 import { createEditorHandlers, prepareJournalInput, preparePersonalDailyInput } from '../../src/server/modules/editor/background.js';
 import type { TaskRecord } from '../../src/server/runtime/tasks.js';
 import { editorEnvironment } from '../support/editor-fixture.js';
@@ -31,6 +32,84 @@ test('EDITOR-01/05 settings and explicit memories persist with account isolation
     await repository.editMemory(env.a.id,memory!.id);
     assert.equal((await repository.memories(env.a.id)).length,0);
     assert.equal((await env.ctx.db.one('SELECT origin FROM memories WHERE id=$1',[memory!.id]))!.origin,'manual');
+  } finally {await env.cleanup();}
+});
+
+test('SKILL-01/03 automatic matching leaves unscoped questions available and explicit skills require materials', async () => {
+  const env=await editorEnvironment();
+  try {
+    const service=new EditorService(env.ctx),skills=new SkillsService(env.ctx),catalog=await skills.list();
+    const installed=await skills.install(env.a,catalog.find(skill=>skill.kind==='explain')!.id);
+    const conversation=await service.createConversation(env.a,'新闻解释');
+    await assert.rejects(service.prepare(env.a,conversation!.id,{content:'解释新闻',skillId:installed!.id}),{code:'INVALID_INPUT'});
+    const prepared=await service.prepare(env.a,conversation!.id,{content:'解释一下云杉引擎的新消息'});
+    assert.equal(prepared.skill,null);
+    await service.execute(prepared,()=>{});
+    assert.equal((await service.conversation(env.a,conversation!.id)).messages.at(-1)!.status,'completed');
+  } finally {await env.cleanup();}
+});
+
+test('SKILL-01/03 fixed-material brief completes without searching outside its selected reports', async () => {
+  const env=await editorEnvironment();
+  try {
+    const service=new EditorService(env.ctx),skills=new SkillsService(env.ctx);
+    const catalog=await skills.list(),installed=await skills.install(env.a,catalog.find(skill=>skill.kind==='brief')!.id);
+    const conversation=(await service.createConversation(env.a,'试用简报',{kind:'news',id:env.newsId}))!;
+    env.state.mode='scope-expansion';
+    const events:{name:string;data:unknown}[]=[];
+    await service.execute(await service.prepare(env.a,conversation.id,{content:'整理试用进展简报',skillId:installed!.id}),(name,data)=>events.push({name,data}));
+    const answer=(await service.conversation(env.a,conversation.id)).messages.at(-1)!;
+    assert.equal(answer.status,'completed');
+    assert.equal(answer.artifact?.kind,'brief');
+    assert.deepEqual(answer.sources.map(source=>source.id),[env.newsId]);
+    assert.ok(events.some(event=>event.name==='tool'&&(event.data as {name:string;status:string}).name==='materials_read'&&(event.data as {status:string}).status==='completed'));
+    assert.ok(!events.some(event=>event.name==='tool'&&(event.data as {name:string}).name==='news_search'));
+  } finally {await env.cleanup();}
+});
+
+test('EDITOR-03/SKILL-03 failures preserve prior answers and cannot become completed results', async () => {
+  const env=await editorEnvironment();
+  try {
+    const service=new EditorService(env.ctx),skills=new SkillsService(env.ctx);
+    const conversation=await service.createConversation(env.a,'失败恢复',{kind:'news',id:env.newsId});
+    await service.execute(await service.prepare(env.a,conversation!.id,{content:'开放日期？'}),()=>{});
+    for (const mode of ['failure','truncated','bad-citation']) {
+      env.state.mode=mode;const events:string[]=[];
+      await service.execute(await service.prepare(env.a,conversation!.id,{content:'继续解释'}),name=>events.push(name));
+      assert.ok(events.includes('error'));assert.ok(!events.includes('complete'));
+    }
+    const catalog=await skills.list(),map=await skills.install(env.a,catalog.find(skill=>skill.kind==='mindmap')!.id);
+    env.state.mode='bad-map';const events:string[]=[];
+    await service.execute(await service.prepare(env.a,conversation!.id,{content:'生成导图',skillId:map!.id}),name=>events.push(name));
+    assert.ok(events.includes('error'));assert.ok(!events.includes('artifact'));
+    await skills.update(env.a,map!.id,{enabled:false});
+    const calls=env.state.calls;
+    await assert.rejects(service.prepare(env.a,conversation!.id,{content:'生成导图',skillId:map!.id}),{code:'INVALID_INPUT'});
+    assert.equal(env.state.calls,calls);
+    const messages=(await service.conversation(env.a,conversation!.id)).messages.filter(message=>message.role==='assistant');
+    assert.equal(messages[0].status,'completed');assert.ok(messages.slice(1).every(message=>message.status==='failed'));
+    assert.ok(messages.every(message=>message.artifact===null));
+  } finally {await env.cleanup();}
+});
+
+test('EDITOR-02/SKILL-01 summary-only bilingual reading declares its actual material scope', async () => {
+  const env=await editorEnvironment();
+  try {
+    await env.ctx.db.query("UPDATE news SET content_scope='summary',content=$2 WHERE id=$1",[env.newsId,'Spruce Engine will open for trial on October 10, 2026. Commercial pricing has not been announced.']);
+    const service=new EditorService(env.ctx),skills=new SkillsService(env.ctx),catalog=await skills.list();
+    const installed=await skills.install(env.a,catalog.find(skill=>skill.kind==='bilingual')!.id);
+    const conversation=await service.createConversation(env.a,'双语摘要',{kind:'news',id:env.newsId});
+    await service.execute(await service.prepare(env.a,conversation!.id,{content:'全文中英对照',skillId:installed!.id}),()=>{});
+    const answer=(await service.conversation(env.a,conversation!.id)).messages.at(-1)!;
+    assert.equal(answer.status,'completed');assert.match(answer.content,/^以下内容依据来源提供的摘要整理/);
+    assert.match(answer.content,/> Spruce Engine will open for trial/);
+    assert.match(answer.content,/Commercial pricing has not been announced\./);
+    assert.match(answer.content,/商业价格尚未公布/);
+    env.state.mode='bad-bilingual';
+    await service.execute(await service.prepare(env.a,conversation!.id,{content:'再对照一次',skillId:installed!.id}),()=>{});
+    const invalid=(await service.conversation(env.a,conversation!.id)).messages.at(-1)!;
+    assert.equal(invalid.status,'failed');
+    assert.ok(!invalid.content.includes('Invented original'));
   } finally {await env.cleanup();}
 });
 

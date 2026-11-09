@@ -26,7 +26,7 @@ export async function registerEditor(app: FastifyInstance, ctx: AppContext) {
   const rename = z.object({ title: text.max(200) }).strict();
   app.patch<{ Params: { id: string } }>('/api/v1/conversations/:id', { schema: { tags: ['Editor'], summary: '重命名本人会话', params, body: jsonSchema(rename) } }, async request => repository.renameConversation(request.actor!.id, request.params.id, rename.parse(request.body).title));
   app.delete<{ Params: { id: string } }>('/api/v1/conversations/:id', { schema: { tags: ['Editor'], summary: '删除本人会话及消息', params } }, async request => repository.removeConversation(request.actor!.id, request.params.id));
-  const send = z.object({ content: text.max(12000), context: scope.optional(), retryMessageId: z.string().uuid().optional() }).strict();
+  const send = z.object({ content: text.max(12000), skillId: z.string().uuid().optional(), context: scope.optional(), retryMessageId: z.string().uuid().optional() }).strict();
   app.post<{ Params: { id: string } }>('/api/v1/conversations/:id/messages', { schema: { tags: ['Editor'], summary: '发送问题，流式返回回答与来源', params, body: jsonSchema(send) } }, async (request, reply) => {
     const prepared = await service.prepare(request.actor!, request.params.id, send.parse(request.body));
     const controller = new AbortController();
