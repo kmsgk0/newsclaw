@@ -7,7 +7,7 @@ import { prepareJournalInput, preparePersonalDailyInput } from './background.js'
 import { businessDate } from './calendar.js';
 
 const text = z.string().trim().min(1);
-const scope = z.object({ kind: z.enum(['news', 'event', 'favorites']), id: z.string().uuid().optional() }).strict().refine(value => value.kind === 'favorites' || !!value.id, '请选择材料');
+const scope = z.object({ kind: z.enum(['news', 'event', 'favorites', 'topic']), id: z.string().uuid().optional() }).strict().refine(value => value.kind === 'favorites' || !!value.id, '请选择材料');
 const params = { type: 'object', properties: { id: { type: 'string', format: 'uuid' } }, required: ['id'], additionalProperties: false };
 const jsonSchema = (schema: z.ZodType) => z.toJSONSchema(schema, { target: 'draft-7' });
 export async function registerEditor(app: FastifyInstance, ctx: AppContext) {

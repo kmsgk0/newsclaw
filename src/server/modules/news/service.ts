@@ -7,6 +7,7 @@ import { fetchSource, parseSource, assertPublicTarget, normalizeUrl,enrichCandid
 import { NewsRepository, newsSelect, newsDto } from './repository.js';
 import type { MaterialScope, SearchInput, NewsItem } from './types.js';
 import { graphExtractionSchema, validateGraph } from '../topics/validation.js';
+import { TopicsRepository } from '../topics/repository.js';
 import { NEWS_DOMAINS, detectLanguage, normalizeDomain, translateArticle } from './content.js';
 import { readingMaterials, selectLabeledSources, sourceLabelsSchema } from './materials.js';
 
@@ -27,12 +28,17 @@ export class NewsService {
   constructor(private readonly ctx: AppContext) { this.repo = new NewsRepository(ctx.db); }
   async search(input: SearchInput) { const query = searchSchema.parse(input); const vector = query.semantic && query.q ? await this.ctx.model.embed(query.q) : undefined; return this.repo.search(query, vector); }
   async get(id: string, actor?: Actor | null) { return this.repo.get(id, actor?.id); }
-  async event(id: string) { return this.repo.event(id); }
+  async event(id: string, actor?: Actor | null) {
+    const result = await this.repo.event(id); const topics = new TopicsRepository(this.ctx.db);
+    return { ...result, graph: await topics.graph(result.news.map(n => n.id)), following: actor ? await topics.following(actor.id,'event',id) : false };
+  }
   async materials(actor: Actor, scope: MaterialScope) {
     if (scope.kind === 'news') { if (!scope.id) throw invalid('请选择新闻'); return [await this.get(scope.id,actor)]; }
     if (scope.kind === 'event') { if (!scope.id) throw invalid('请选择事件'); return (await this.repo.event(scope.id)).news; }
     if (scope.kind === 'favorites') return (await this.ctx.db.query(`${newsSelect} JOIN favorites f ON f.news_id=n.id WHERE f.user_id=$1 ORDER BY f.created_at DESC,n.id`, [actor.id])).map(newsDto);
-    throw invalid('请选择新闻、事件或收藏材料');
+    if (!scope.id) throw invalid('请选择专题');
+    const repo = new TopicsRepository(this.ctx.db); await repo.get(scope.id,actor.id); await repo.refresh(scope.id,actor.id);
+    return repo.news(scope.id,actor.id);
   }
   async saveSource(input: z.infer<typeof sourceSchema>, id?: string) {
     sourceConfigs[input.kind].parse(input.config);
@@ -41,7 +47,7 @@ export class NewsService {
     return this.repo.saveSource({ ...input, url: normalizeUrl(input.url) },id);
   }
   async moveEvent(id:string,eventId:string|null,actorId:string){
-    await this.ctx.db.tx(async tx=>{await new NewsRepository(tx).moveEvent(id,eventId,actorId);});
+    await this.ctx.db.tx(async tx=>{await new NewsRepository(tx).moveEvent(id,eventId,actorId);await new TopicsRepository(tx).updateHeat();});
     return this.get(id);
   }
   async guard(task: TaskRecord, executionId: string, sourceId: string, tx: Db) {
@@ -89,6 +95,7 @@ export function createNewsHandlers(ctx: AppContext): { collect: TaskHandler; dai
         const candidate = await enrichCandidate(initial, ctx.config.allowedSourceHosts, run.signal, { ...source.config, ...(input.refreshSource ? {refreshSource:true} : {}) });
         const raw = await write(async tx => {
           const row = await repo.upsert(source.id,candidate,tx);
+          if (row.inserted) await ctx.tasks.submit(null,'notify',{newsId:String(row.id)},`news-${row.id}`,null,tx);
           return row;
         });
         const id = String(raw.id), hash = String(raw.content_hash);
@@ -165,7 +172,10 @@ export function createNewsHandlers(ctx: AppContext): { collect: TaskHandler; dai
           await set({embedding,processing:{index:'succeeded',indexHash:hash,error:null}});
         }
         await writeArticle(async tx => {
+          if (extracted) await new TopicsRepository(tx).saveGraph(id,validateGraph(extracted,[id]));
+          const ready = await tx.one('SELECT event_id FROM news WHERE id=$1',[id]);
           await repo.updateProcessing(id,hash,{processing:{stale:false,error:null,completedAt:new Date().toISOString()}},tx);
+          await ctx.tasks.submit(null,'notify',{newsId:id},`news-ready-${id}-${hash}-${ready?.event_id??'independent'}`,null,tx);
         });
         processed.push(id);
       } catch (error) {
@@ -182,12 +192,13 @@ export function createNewsHandlers(ctx: AppContext): { collect: TaskHandler; dai
       }
     }
     if (failures.length) {
-      await write(async tx => {await repo.sourceResult(source.id,`${failures.length} 篇处理失败：${failures[0].message}`,tx);});
+      await write(async tx => {await repo.sourceResult(source.id,`${failures.length} 篇处理失败：${failures[0].message}`,tx);await new TopicsRepository(tx).updateHeat();});
       throw unavailable(`${failures.length} 篇报道处理失败，${processed.length} 篇已完成。${failures[0].message}`);
     }
     return {commit:async tx=>{
       await service.guard(task,run.executionId,source.id,tx);
       if(processed.length || !supersededNewsIds.length) await repo.sourceResult(source.id,null,tx);
+      await new TopicsRepository(tx).updateHeat();
       return {sourceId:source.id,processed:processed.length,newsIds:processed,...(supersededNewsIds.length?{supersededNewsIds,...(!processed.length?{status:'superseded',message:'报道已有更新版本，本次未覆盖新内容'}:{})}:{})};
     }};
   };

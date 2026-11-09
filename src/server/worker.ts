@@ -5,13 +5,14 @@ import type { AppContext } from './context.js';
 import { createContext,closeContext } from './application.js';
 import type { TaskHandlers } from './runtime/tasks.js';
 import { createNewsHandlers,preparePublicDailyInput } from './modules/news/index.js';
+import { createTopicHandlers } from './modules/topics/index.js';
 import { createEditorHandlers,prepareJournalInput,preparePersonalDailyInput } from './modules/editor/index.js';
 import { businessDate } from './modules/editor/calendar.js';
 import type { NewsItem } from './modules/news/types.js';
 
 export function createHandlers(ctx:AppContext):TaskHandlers {
-  const news=createNewsHandlers(ctx),editor=createEditorHandlers(ctx);
-  return {collect:news.collect,journal:editor.journal,daily:(task,run)=>task.owner_id?editor.daily(task,run):news.daily(task,run)};
+  const news=createNewsHandlers(ctx),editor=createEditorHandlers(ctx),topics=createTopicHandlers(ctx);
+  return {collect:news.collect,notify:topics.notify,journal:editor.journal,daily:(task,run)=>task.owner_id?editor.daily(task,run):news.daily(task,run)};
 }
 export async function schedule(ctx:AppContext,now=new Date()) {
   const hour=now.toISOString().slice(0,13),date=businessDate(now);

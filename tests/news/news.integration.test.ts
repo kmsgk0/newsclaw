@@ -9,6 +9,8 @@ import { ModelClient } from '../../src/server/adapters/model.js';
 import type { Config } from '../../src/server/config.js';
 import type { TaskHandlers } from '../../src/server/runtime/tasks.js';
 import { NewsService, createNewsHandlers, preparePublicDailyInput } from '../../src/server/modules/news/service.js';
+import { createTopicHandlers } from '../../src/server/modules/topics/service.js';
+import { TopicsRepository } from '../../src/server/modules/topics/repository.js';
 
 class FixtureModel extends ModelClient {
   failTranslation=false;failDigest=false;failEmbedding=false;summaryCalls=0;translationCalls=0;
@@ -29,10 +31,28 @@ async function fixture(){
   const server=createServer((_req,res)=>{res.setHeader('content-type','application/rss+xml');res.end(`<rss><channel><item><title>${headline}</title><link>https://news.example/release${suffix}?utm_source=rss</link><pubDate>${date}</pubDate><description>Spruce Engine is open for trial. Commercial pricing has not been announced.</description></item></channel></rss>`);});
   await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));const address=server.address();if(!address||typeof address==='string')throw new Error('No fixture port');
   const service=new NewsService(ctx);const source=await service.saveSource({name:'Fixture source',kind:'rss',url:`http://127.0.0.1:${address.port}/feed`,enabled:true,config:{}});
-  const handlers:TaskHandlers={...createNewsHandlers(ctx),journal:async()=>{throw new Error('Unused journal handler');}};
+  const handlers:TaskHandlers={...createNewsHandlers(ctx),...createTopicHandlers(ctx),journal:async()=>{throw new Error('Unused journal handler');}};
   const collect=async()=>{const task=await ctx.tasks.submit(null,'collect',{sourceId:source.id},randomUUID());return ctx.tasks.execute({taskId:task.id,generation:task.generation},handlers);};
   return {ctx,model,service,source,handlers,collect,changeArticle(){suffix='/next';headline='Spruce Engine progress';},async cleanup(){await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));await env.cleanup();}};
 }
+test('NEWS-01/02/03/04 collection preserves sources, reuses processing, indexes news and aggregates events',async()=>{
+  const f=await fixture();try{
+    await f.collect();await f.collect();
+    const page=await f.service.search({q:'Spruce'});assert.equal(page.total,1);assert.equal(page.items[0].contentScope,'summary');assert.equal(page.items[0].translation,'云杉引擎开放试用，商业价格未公布。');assert.equal(f.model.summaryCalls,1);assert.equal(f.model.translationCalls,1);
+    assert.equal((await f.service.search({q:'engine',semantic:true})).total,1);
+    assert.equal((await f.service.search({q:'no matching content'})).total,0);
+    await assert.rejects(f.service.search({pageSize:101}));
+    const other=await f.service.saveSource({name:'Second source',kind:'rss',url:f.source.url,enabled:true,config:{}});const task=await f.ctx.tasks.submit(null,'collect',{sourceId:other.id},randomUUID());await f.ctx.tasks.execute({taskId:task.id,generation:task.generation},f.handlers);
+    const both=await f.service.search({});assert.equal(both.total,2);assert.notEqual(both.items[0].sourceId,both.items[1].sourceId);assert.equal(f.model.summaryCalls,1);
+    const pages=await Promise.all([f.service.search({page:1,pageSize:1}),f.service.search({page:2,pageSize:1})]);assert.deepEqual(pages.flatMap(p=>p.items.map(n=>n.id)).sort(),both.items.map(n=>n.id).sort());
+    const first=both.items[0];assert.ok(first.eventId);assert.equal((await f.service.event(first.eventId!)).news.length,2);
+    const graph=await new TopicsRepository(f.ctx.db).graph(both.items.map(n=>n.id));assert.equal(graph.edges.length,1);assert.equal(graph.edges[0].sourceIds.length,2);
+    f.model.failEmbedding=true;await assert.rejects(f.service.search({q:'semantic',semantic:true}));
+    const user=await new AuthService(f.ctx.db).register({username:'manager',password:'example-password'});await f.ctx.db.query("UPDATE users SET role='admin' WHERE id=$1",[user.id]);
+    const secondEvent=await f.ctx.db.one<{id:string}>('INSERT INTO events(title,summary) VALUES($1,$2) RETURNING id',['Separate','Separate']);await f.service.moveEvent(first.id,secondEvent!.id,user.id);
+    assert.equal((await f.service.event(first.eventId!)).news.length,1);assert.equal((await f.service.event(secondEvent!.id)).graph.edges[0].sourceIds.length,1);
+  }finally{await f.cleanup();}
+});
 test('NEWS-02 failed translation preserves raw and summary and only retries missing steps',async()=>{
   const f=await fixture();try{f.model.failTranslation=true;await assert.rejects(f.collect());const page=await f.service.search({});assert.equal(page.total,1);assert.ok(page.items[0].summary);assert.equal(page.items[0].translation,null);assert.ok(page.items[0].content);f.model.failTranslation=false;await f.collect();assert.equal(f.model.summaryCalls,1);assert.equal(f.model.translationCalls,2);assert.ok((await f.service.get(page.items[0].id)).translation);}finally{await f.cleanup();}
 });

@@ -8,6 +8,7 @@ import { ModelClient, ModelError } from '../../src/server/adapters/model.js';
 import { AuthService } from '../../src/server/modules/account/service.js';
 import { NewsService, createNewsHandlers } from '../../src/server/modules/news/service.js';
 import { detectLanguage, normalizeDomain, translateArticle } from '../../src/server/modules/news/content.js';
+import { createTopicHandlers } from '../../src/server/modules/topics/service.js';
 import type { TaskHandlers } from '../../src/server/runtime/tasks.js';
 import type { Config } from '../../src/server/config.js';
 
@@ -51,7 +52,7 @@ async function fixture() {
   const address=server.address(); assert.ok(address && typeof address!=='string');
   const service=new NewsService(env.ctx);
   const source=await service.saveSource({name:'Quality fixture',kind:'rss',url:`http://127.0.0.1:${address.port}/feed`,enabled:true,config:{}});
-  const handlers:TaskHandlers={...createNewsHandlers(env.ctx),journal:async()=>{throw new Error('Unused journal');}};
+  const handlers:TaskHandlers={...createNewsHandlers(env.ctx),...createTopicHandlers(env.ctx),journal:async()=>{throw new Error('Unused journal');}};
   const collect=async()=>{const task=await env.ctx.tasks.submit(null,'collect',{sourceId:source.id},randomUUID());return env.ctx.tasks.execute({taskId:task.id,generation:task.generation},handlers);};
   return {...env,model,service,source,collect,setItems(value:typeof items){items=value;},async cleanup(){await new Promise<void>(resolve=>server.close(()=>resolve()));await env.cleanup();}};
 }
@@ -209,4 +210,31 @@ test('NEWS-02 metadata remains useful when analysis cannot run',async()=>{
     const items=(await f.service.search({language:'zh',domain:'科技综合'})).items;
     assert.equal(items.length,1);assert.equal(items[0].language,'zh');assert.equal(items[0].domain,'科技综合');
   }finally{await f.cleanup();}
+});
+
+test('NEWS-01 concurrent article versions cannot publish an older graph or completion state',async()=>{
+  const f=await fixture();let release!:()=>void;let older:Promise<unknown>|undefined;
+  const gate=new Promise<void>(resolve=>release=resolve);let entered!:()=>void;const waiting=new Promise<void>(resolve=>entered=resolve);
+  try {
+    f.ctx.model.json=async function<T>(purpose:string,input:unknown,schema:z.ZodType<T>){
+      const value=input as {news:{title:string;content:string};paragraphs:{id:string;content:string}[]};
+      if(purpose==='news-analysis') {
+        const old=value.news.content.includes('Old model');
+        if(old){entered();await gate;}
+        return {value:schema.parse({selected:true,summary:old?'Old model released':'New model released',domain:'人工智能',eventTitle:'Lab release',entities:[{name:'Lab',type:'company'},{name:old?'Old model':'New model',type:'product'}],relations:[{source:'Lab',target:old?'Old model':'New model',label:'released'}]}),usage:{inputTokens:1,outputTokens:1,totalTokens:2}};
+      }
+      return {value:schema.parse({paragraphs:value.paragraphs.map(p=>({id:p.id,translation:p.content}))}),usage:{inputTokens:1,outputTokens:1,totalTokens:2}};
+    };
+    f.setItems([{title:'Lab release',path:'/race',body:'<p>Lab released Old model.</p>'}]);older=f.collect();await waiting;
+    f.setItems([{title:'Lab release',path:'/race',body:'<p>Lab released New model.</p>'}]);await f.collect();
+    const newer=(await f.service.search({})).items[0];release();const oldResult=await older as {supersededNewsIds:string[]};
+    const current=await f.service.get(newer.id);
+    const graph=await f.service.event(current.eventId!);
+    assert.ok(graph.graph.nodes.some(node=>node.label==='New model'));
+    assert.ok(!graph.graph.nodes.some(node=>node.label==='Old model'));
+    assert.equal(current.summary,newer.summary);assert.equal(current.processing.completedAt,newer.processing.completedAt);
+    assert.deepEqual(oldResult.supersededNewsIds,[newer.id]);
+    const ready=await f.ctx.db.query("SELECT id FROM tasks WHERE type='notify' AND input->>'newsId'=$1 AND operation_id LIKE 'news-ready-%'",[newer.id]);
+    assert.equal(ready.length,1);
+  }finally{release();await older?.catch(()=>{});await f.cleanup();}
 });

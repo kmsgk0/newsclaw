@@ -31,6 +31,6 @@
 | AI-11 | 导图校验；TOPIC-04 | 使用 N1 生成导图，并检查结构错误或引用不存在报道的结果 | 有效导图可查看和保存；无效结果明确失败，已有成果保留 |
 | AI-12 | 图谱依据；TOPIC-05 | 仅提供 N1，检查发布关系及无依据的收购关系 | 发布关系关联 N1；没有材料支持的收购关系不能作为新闻事实发布 |
 
-需求详情见[个人编辑](../../openspec/specs/personal-editor/spec.md)、[阅读技能](../../openspec/specs/editor-skills/spec.md)、[新闻库](../../openspec/specs/news-library/spec.md)和[专题与洞察](../product/requirements/topics-and-insights.md)。
+需求详情见[个人编辑](../../openspec/specs/personal-editor/spec.md)、[阅读技能](../../openspec/specs/editor-skills/spec.md)、[新闻库](../../openspec/specs/news-library/spec.md)和[专题与洞察](../../openspec/specs/topics-and-insights/spec.md)。
 
 执行后简要记录所用版本、实际输出及通过或失败结论。权限、调用和保存行为检查实际结果，不能只凭模型自述；未执行的样例保持未执行。调用约定见 [AI 应用规范](../standards/ai.md)。

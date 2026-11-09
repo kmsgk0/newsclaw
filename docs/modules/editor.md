@@ -24,7 +24,7 @@
 | `GET /api/v1/editor/journals` | 按日期回看编辑手记 |
 | `POST /api/v1/editor/journals/generate` | 整理本人新增活动，返回 `202` |
 
-会话创建参数为 `title` 和可选 `context`。材料范围包含 `kind` 与对象 `id`，类型为 `news`、`event`、`favorites`；收藏集合不需要对象标识。指定对象不存在时直接返回 `404`，不替换为全站材料。
+会话创建参数为 `title` 和可选 `context`。材料范围包含 `kind` 与对象 `id`，类型为 `news`、`event`、`favorites`、`topic`；收藏集合不需要对象标识。专题先校验本人归属。指定对象不存在时直接返回 `404`，不替换为全站材料。
 
 消息参数为 `content`、可选个人 `skillId` 和可选 `context`；重试时另传失败回答的 `retryMessageId`，复用原问题和材料。消息未传范围时沿用会话当前范围；全新且没有范围的会话通过新闻检索取得材料。同一会话已有回答生成时返回 `409`，不重复写入第二组消息。空问题和停用技能在调用模型之前拒绝。
 
@@ -50,14 +50,14 @@
 
 ## MCP 与模型
 
-编辑使用官方 MCP SDK 的客户端和服务端，通过进程内传输交换协议消息。实现位于 [MCP 适配器](../../src/server/adapters/mcp.ts)，由[编辑服务](../../src/server/modules/editor/service.ts)在回答期间创建和关闭。每次回答绑定已认证账号，工具复用新闻业务服务。
+编辑使用官方 MCP SDK 的客户端和服务端，通过进程内传输交换协议消息。实现位于 [MCP 适配器](../../src/server/adapters/mcp.ts)，由[编辑服务](../../src/server/modules/editor/service.ts)在回答期间创建和关闭。每次回答绑定已认证账号，工具复用新闻与专题业务服务。
 
 | 工具 | 参数 | 读取范围 |
 | --- | --- | --- |
 | `news_search` | `query`、可选 `semantic` | 公共新闻检索，最多返回 20 条 |
 | `news_read` | 新闻 `id` | 指定报道 |
 | `events_read` | 事件 `id` | 指定事件与关联报道 |
-| `materials_read` | `kind`、可选 `id` | 新闻、事件或本人收藏 |
+| `materials_read` | `kind`、可选 `id` | 新闻、事件、本人收藏或本人专题 |
 
 工具参数使用严格 schema，账号由宿主传入。显式技能的结果按选中新闻标识过滤；私人材料使用当前账号校验归属。调用日志记录请求、账号、工具、结果及耗时，错误传回编辑服务，由会话保存失败状态。
 
@@ -83,7 +83,7 @@
 
 公开版本只包含名称、介绍、处理说明、输出偏好和主动填写的示例。发布状态为 `draft`、`published`、`unlisted`；下架后从可安装列表移除，已有个人副本保留。
 
-简报、对比与导图以结构化成果随回答返回；保存到专题按后续专题能力接入。成果结构包含 `title`、`kind`、`content`、`skillId`、`sourceIds` 和对应助手 `messageId`，服务端保留生成时的报道快照与来源编号，供后续成果保存使用。导图额外包含 `structure`，其节点含 `label`、非空 `sourceIds` 和可选 `children`。每个节点的来源必须属于本次实际材料。
+简报、对比与导图可保存为专题成果。成果结构包含 `title`、`kind`、`content`、`skillId`、`sourceIds` 和对应助手 `messageId`，服务端保存生成时的报道快照与来源编号。专题保存使用本人已完成消息中的成果，新闻后续更新不替换这份材料。导图额外包含 `structure`，其节点含 `label`、非空 `sourceIds` 和可选 `children`。每个节点的来源必须属于本次实际材料。
 
 ## 日报、记忆与手记
 
