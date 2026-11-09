@@ -2,19 +2,20 @@
 
 个性化 AI 新闻阅读平台。将不同来源的资讯整理到一起，由专属 AI 编辑结合阅读兴趣提供新闻解读、个人日报和持续跟进。
 
-当前提供可运行的 API 与后台 Worker。已实现能力通过接口调用，Web 阅读界面继续按产品规划开发。
+提供可运行的 Web 应用、API 和后台任务。公共新闻供所有人阅读，私人会话、兴趣、记忆和专题按账号保存，生成内容保留来源入口。
 
-## 已实现能力
+## 功能
 
-- **应用基础与账号**：账号注册登录、刷新、退出和改密，编辑初始化、角色校验，以及 API、Worker、数据库迁移、任务运行和备份工具。
-- **共享新闻与阅读**：多来源采集、正文整理、摘要翻译、事件关联、检索筛选、收藏、阅读记录与全站日报 API。
-- **个人编辑**：编辑设置、带来源的流式问答、MCP 查询、连续会话、个人日报、长期记忆及编辑手记 API。
-- **阅读技能**：五项阅读技能、个人副本安装修改与启停、显式及自动执行、发布与管理 API。
-- **专题与持续跟进**：私人专题、笔记、成果及来源快照、站内热点、事件时间线、关系图、更新提醒与可撤销分享 API。
+- **资讯中心**：多来源聚合、筛选、摘要、翻译、事件整理、搜索和收藏，保留报道来源。
+- **专属编辑**：带来源的新闻问答、个人日报、长期记忆、编辑手记和站内更新提醒。
+- **技能广场**：通俗解读、多源对比、专题简报、思维导图和双语阅读，支持安装、修改、启停与分享。
+- **热点与专题**：热点趋势、事件时间线、私人笔记、新闻知识图谱及阅读成果保存与分享。
+
+![资讯中心](docs/images/newsclaw-desktop.png)
 
 ## 技术选型
 
-- 前端规划：React Router、TypeScript、Tailwind CSS。
+- 前端：React Router、TypeScript、Tailwind CSS。
 - 后端与数据：Node.js、Fastify、PostgreSQL。
 - AI 与运行：远程模型 API、MCP 工具、Redis + BullMQ 后台任务、Docker Compose。
 
@@ -22,16 +23,15 @@
 
 | 内容 | 入口 |
 | --- | --- |
-| 当前接口、运行与开发说明 | [文档导航](docs/README.md) |
-| 完整产品目标与未实现能力 | [产品规划](docs/product/README.md)、[路线图](docs/product/roadmap.md) |
+| 使用、运行与模块说明 | [文档导航](docs/README.md) |
 | 架构与数据关系 | [系统架构](docs/architecture.md) |
-| 已实现行为与变更任务 | [现行规格](openspec/specs/)、[变更目录](openspec/changes/) |
+| 业务约定与阶段变更 | [现行规格](openspec/specs/)、[变更目录](openspec/changes/) |
 | 开发规则与流程 | [AGENTS.md](AGENTS.md)、[开发指南](CONTRIBUTING.md) |
-| 自动检查 | [检查入口](docs/verification/checks.md) |
+| 自动检查与正式记录 | [检查入口](docs/verification/checks.md)、[报告索引](reports/README.md) |
 
 ## 运行
 
-准备 Docker Compose；本地开发另需 Node.js 24 或更新版本。克隆后复制配置示例，填写数据库口令及服务配置：
+准备 Docker Compose；本地开发另需 Node.js 24 或更新版本。克隆后复制配置示例，填写数据库口令、对话及嵌入服务配置：
 
 ```sh
 git clone https://github.com/kmsgk0/newsclaw.git
@@ -41,7 +41,7 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-API 监听 `http://localhost:3100`，`/health` 返回依赖就绪状态，`/live` 返回进程状态。注册与管理角色初始化见[账号说明](docs/modules/account.md)。
+打开 `http://localhost:3100`，接口文档位于 `/docs/api`。注册后会建立自己的编辑。需要管理公共内容时，在已注册账号上执行管理员初始化，方法见[账号说明](docs/modules/account.md)。信源可在管理工作台配置、启停和主动采集，首次初始化也可运行 `npm run seed`。
 
 本地开发：
 
@@ -53,9 +53,9 @@ npm run seed
 npm run dev
 ```
 
-另开终端运行 `npm run worker`。配置、任务与恢复见[运行说明](docs/runtime.md)。
+另开终端运行 `npm run worker` 和 `npm run dev:web`，开发网页使用 `http://localhost:5175`。配置、任务调度、错误及恢复见[运行说明](docs/runtime.md)，阅读与页面操作见[界面说明](docs/usage.md)。
 
-## 检查
+## 检查与报告
 
 ```sh
 npm run lint
@@ -63,9 +63,13 @@ npm run typecheck
 npm test
 npm run test:api
 npm run build
+npx playwright install chromium --only-shell
+npm run test:e2e
 ```
 
-构建命令编译服务端。自动测试使用隔离 PostgreSQL、Redis 及可控外部服务，不调用真实模型；测试数据库账号需能创建临时数据库。完整入口为 `make check`，单独的 `npm run check -- --base main` 保持仓库检查范围；Gitleaks 与环境准备见[检查说明](docs/verification/checks.md)。
+自动测试使用独立 PostgreSQL 数据库、Redis 队列及模型和信源替身，不调用真实模型。测试账号需能够创建临时数据库。完整入口 `make check` 先执行仓库与安全检查，再运行上述应用检查。单独的 `npm run check -- --base main` 保持仓库检查范围，需先按[检查说明](docs/verification/checks.md)准备 Gitleaks。
+
+安全、权限、并发、事务和 AI 内容质量按[检查方法](docs/verification/security.md)核对并记录实际结果。源码与运行依赖见[依赖说明](docs/dependencies.md)。
 
 ## 协作
 

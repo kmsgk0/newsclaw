@@ -1,6 +1,6 @@
 # 仓库检查
 
-`npm run check` 覆盖 OpenSpec、仓库文档、提交的规约引用、安全及工具测试，不依赖业务服务或模型调用。`make check` 先运行这一仓库检查，再执行应用静态、类型、行为、接口及服务端构建检查；数据库与 Redis 需按运行说明准备。本地与 GitHub Actions 复用同一套单项 npm 命令，需求依据见[开发流程规格](../../openspec/specs/contribution-workflow/spec.md)。
+`npm run check` 覆盖 OpenSpec、仓库文档、提交的规约引用、安全及工具测试，不依赖业务服务或模型调用。`make check` 先运行这一仓库检查，再执行应用静态、类型、行为、接口、构建及浏览器检查；数据库、Redis 与测试浏览器需按运行说明准备。本地与 GitHub Actions 复用同一套单项 npm 命令，需求依据见[开发流程规格](../../openspec/specs/contribution-workflow/spec.md)。
 
 ## 准备与运行
 
@@ -33,7 +33,8 @@ npm run check -- --base main
 | `npm run lint`、`npm run typecheck` | 应用静态与类型检查 |
 | `npm test` | 业务规则与集成测试 |
 | `npm run test:api` | 实际 HTTP、任务恢复及安全检查 |
-| `npm run build` | 服务端编译 |
+| `npm run build` | 服务端与前端构建 |
+| `npm run test:e2e` | 使用隔离应用运行浏览器检查 |
 
 直接依赖固定版本，间接依赖由 `package-lock.json` 锁定。OpenSpec（MIT）负责规格校验，markdown-it（MIT）解析 Markdown，github-slugger（ISC）生成 GitHub 标题锚点。Gitleaks（MIT）作为独立 CLI 使用。
 
@@ -84,7 +85,7 @@ node scripts/checks/check-security.mjs dist .local/runtime.log
 
 - `Repository checks`：安装依赖，执行规格、文件、提交引用检查及对应测试。
 - `Security checks`：安装依赖与校验过的 Gitleaks，执行密钥扫描、依赖审计及对应测试。
-- `Application checks`：启动隔离 PostgreSQL 与 Redis，运行应用类型、静态、行为及接口检查，使用本地 HTTP 模型替身。
+- `Application checks`：启动隔离 PostgreSQL 与 Redis，运行应用类型、静态、行为、接口和浏览器检查，使用本地 HTTP 模型替身。
 
 Makefile 编排完整检查，`scripts/checks/check.mjs` 保留仓库检查清单。`make check-security`、`make test` 分别调用对应单项 npm 命令；`make backup` 调用 Docker Compose 备份命令。应用检查环境见 [运行说明](../runtime.md)，结果见[检查报告](../../reports/README.md)。 正式报告保留关键输出；完整运行记录写入 `.local/verification/`，不进入 Git。
 

@@ -7,6 +7,7 @@ check:
 	npm test
 	npm run test:api
 	npm run build
+	npm run test:e2e
 
 check-security:
 	npm run check:security
