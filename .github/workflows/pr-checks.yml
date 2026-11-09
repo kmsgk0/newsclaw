@@ -43,11 +43,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: npm run lint && npm run typecheck
-      - run: npm test && npm run test:api
-      - run: npm run build
       - run: npx playwright install chromium --only-shell --with-deps
-      - run: npm run test:e2e
+      - run: node scripts/checks/check.mjs --group application
   repository-checks:
     name: Repository checks
     runs-on: ubuntu-latest
@@ -64,19 +61,11 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Validate specifications
-        run: npm run check:specs
-      - name: Check repository files
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: npm run check:repo -- --base "$BASE_SHA"
-      - name: Check commit references
+      - name: Repository checks
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: npm run check:commits -- --base "$BASE_SHA" --head "$HEAD_SHA"
-      - name: Test repository checks
-        run: npm run test:checks
+        run: node scripts/checks/check.mjs --group repository --base "$BASE_SHA" --head "$HEAD_SHA"
 
   security-checks:
     name: Security checks
@@ -107,7 +96,5 @@ jobs:
           sha256sum --check selected.sha256
           tar -xzf "$archive" gitleaks
           echo "GITLEAKS_BIN=$RUNNER_TEMP/gitleaks/gitleaks" >> "$GITHUB_ENV"
-      - name: Scan secrets and audit dependencies
-        run: npm run check:security
-      - name: Test security checks
-        run: npm run test:security
+      - name: Security checks
+        run: node scripts/checks/check.mjs --group security

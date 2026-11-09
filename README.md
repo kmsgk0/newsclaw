@@ -57,19 +57,19 @@ npm run dev
 
 ## 检查与报告
 
+完整验收只需 Docker Compose 和系统 shell：
+
 ```sh
-npm run lint
-npm run typecheck
-npm test
-npm run test:api
-npm run build
-npx playwright install chromium --only-shell
-npm run test:e2e
+sh scripts/acceptance.sh
 ```
 
-自动测试使用独立 PostgreSQL 数据库、Redis 队列及模型和信源替身，不调用真实模型。测试账号需能够创建临时数据库。完整入口 `make check` 先执行仓库与安全检查，再运行上述应用检查。单独的 `npm run check -- --base main` 保持仓库检查范围，需先按[检查说明](docs/verification/checks.md)准备 Gitleaks。
+自动构建测试工具镜像、准备隔离数据库和队列，运行规格、安全、代码、接口与浏览器检查。现有用例使用信源和模型替身，无需真实模型凭据。运行结束清理本轮测试环境，并打印 HTML 报告位置；完整产物位于 Git 忽略的 `.local/verification/acceptance/`。
 
-[检查报告](reports/README.md)汇总安全、权限、并发、事务和异步结果；[代码审查](docs/verification/code-review.md)列明文件检查与待修改项；[AI 评测](docs/verification/ai-results.md)记录样例输出与内容质量。源码与运行依赖见[依赖说明](docs/dependencies.md)。
+报告按 NewsClaw 业务能力展示用例及需求编号，支持查找失败、查看阶段日志和浏览器材料。单项开发检查、运行条件及报告说明见[检查入口](docs/verification/checks.md)。
+
+验收默认包含 [SEC-07 模型调用用量检查](reports/security-precheck.md#sec-07-失败调用用量)。当前结构校验失败时会丢失模型已返回的用量，该用例会使验收返回退出码 1，报告显示失败原因和实际用量记录。
+
+[正式报告](reports/README.md)汇总安全、权限、并发、事务和异步结果；[代码审查](docs/verification/code-review.md)列明已登记的待修改项；[AI 评测](docs/verification/ai-results.md)记录真实模型输出与内容质量。源码与运行依赖见[依赖说明](docs/dependencies.md)。
 
 ## 协作
 
