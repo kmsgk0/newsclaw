@@ -1,28 +1,21 @@
-import { spawnSync } from 'node:child_process';
+import { parseArgs } from 'node:util';
+import { createStages, selectStages } from './stages.mjs';
+import { finalizeReport, runChecks } from './pipeline.mjs';
 
-const args = process.argv.slice(2);
-const options = { '--base': 'main', '--head': 'HEAD' };
-for (let i = 0; i < args.length; i += 2) {
-  if (!Object.hasOwn(options, args[i]) || !args[i + 1]) {
-    console.error('Usage: npm run check -- [--base <ref>] [--head <ref>]');
-    process.exit(1);
-  }
-  options[args[i]] = args[i + 1];
-}
-const checks = [
-  ['check:specs'],
-  ['check:repo', '--base', options['--base']],
-  ['check:commits', '--base', options['--base'], '--head', options['--head']],
-  ['test:checks'],
-  ['check:security'],
-  ['test:security'],
-];
-for (const [name, ...flags] of checks) {
-  console.log(`\nRunning ${name}`);
-  const result = spawnSync('npm', ['run', name, ...(flags.length ? ['--', ...flags] : [])], {
-    stdio: 'inherit', env: { ...process.env, OPENSPEC_TELEMETRY: '0' },
-  });
-  if (result.error) console.error(result.error.message);
-  if (result.error || result.status !== 0) process.exit(result.status || 1);
-}
-console.log('\nAll repository checks passed.');
+try {
+  const { values } = parseArgs({ options: {
+    group: { type: 'string' }, stage: { type: 'string' }, base: { type: 'string', default: 'main' },
+    head: { type: 'string', default: 'HEAD' }, finalize: { type: 'string' }, failure: { type: 'string' },
+  } });
+  const controller = new AbortController();
+  const stop = () => controller.abort();
+  process.once('SIGINT', stop); process.once('SIGTERM', stop);
+  let report;
+  try {
+    report = values.finalize ? await finalizeReport(values.finalize, { failure: values.failure }) : await runChecks({
+      stages: selectStages(createStages(values), values), outputDir: process.env.VERIFICATION_DIR, signal: controller.signal,
+    });
+  } finally { process.off('SIGINT', stop); process.off('SIGTERM', stop); }
+  console.log(`\n${report.status === 'passed' ? 'Checks passed.' : `Checks ${report.status}.`}`);
+  process.exitCode = values.finalize || report.status === 'passed' ? 0 : 1;
+} catch (error) { console.error(error.message); process.exitCode = 1; }

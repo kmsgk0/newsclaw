@@ -63,7 +63,7 @@ test('SEC-01/02/03/04/07 real API and MCP enforce account ownership, management 
     assert.equal(env.state.modelCalls,calls);
     await api('POST','/auth/logout',login.accessToken);
     assert.equal((await api('GET','/editor',login.accessToken)).status,401);
-    await mkdir('.local/verification',{recursive:true});
-    await writeFile('.local/verification/security-api-results.json',JSON.stringify({checks:{'SEC-01':'passed','SEC-02':'passed','SEC-03':'passed','SEC-04':'passed','SEC-07-successful-call':'passed'},protectedInterfaces:9,requests:records,skillLog},null,2)+'\n');
+    await mkdir(process.env.VERIFICATION_DIR ?? '.local/verification',{recursive:true});
+    await writeFile(`${process.env.VERIFICATION_DIR ?? '.local/verification'}/security-api-results.json`,JSON.stringify({checks:{'SEC-01':'passed','SEC-02':'passed','SEC-03':'passed','SEC-04':'passed','SEC-07-successful-call':'passed'},protectedInterfaces:9,requests:records,skillLog},null,2)+'\n');
   }finally{await env.cleanup();}
 });

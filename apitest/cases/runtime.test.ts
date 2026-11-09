@@ -12,7 +12,7 @@ import type { Config } from '../../src/server/config.js';
 
 async function until(check:()=>Promise<boolean>,timeout=15000) {const end=Date.now()+timeout;while(Date.now()<end){if(await check())return;await delay(30);}assert.fail('Expected runtime state not reached');}
 const evidence:Record<string,unknown>={};
-async function save(){await mkdir('.local/verification',{recursive:true});await writeFile('.local/verification/async-results.json',JSON.stringify(evidence,null,2)+'\n');}
+async function save(){await mkdir(process.env.VERIFICATION_DIR ?? '.local/verification',{recursive:true});await writeFile(`${process.env.VERIFICATION_DIR ?? '.local/verification'}/async-results.json`,JSON.stringify(evidence,null,2)+'\n');}
 async function submit(base:string,source:string,token:string,operationId:string){const start=performance.now();const response=await fetch(`${base}/api/v1/admin/sources/${source}/collect`,{method:'POST',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify({operationId})});const value=await response.json() as {code:string;data:{taskId:string;status:string;statusUrl:string;result?:unknown}};return {status:response.status,value,ms:performance.now()-start};}
 
 test('OPS-04 API submission does not wait for processing at two latency levels, 20 distinct operations each',async()=>{
