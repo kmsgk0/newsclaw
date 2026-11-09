@@ -18,12 +18,13 @@
     "worker": "tsx src/server/worker.ts",
     "migrate": "tsx src/server/migrate.ts",
     "seed": "tsx src/server/seed.ts",
-    "lint": "eslint src tests",
+    "lint": "eslint src tests apitest",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.server.json",
     "start": "node dist/server/index.js",
     "start:worker": "node dist/server/worker.js",
-    "test": "node --import tsx --test \"tests/**/*.test.ts\""
+    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
+    "test:api": "node --import tsx --test --test-concurrency=1 apitest/cases/*.test.ts"
   },
   "devDependencies": {
     "@fission-ai/openspec": "1.14.3",

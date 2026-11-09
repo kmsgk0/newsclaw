@@ -7,6 +7,7 @@
 ## 已实现能力
 
 - **应用基础与账号**：账号注册登录、刷新、退出和改密，编辑初始化、角色校验，以及 API、Worker、数据库迁移、任务运行和备份工具。
+- **共享新闻与阅读**：多来源采集、正文整理、摘要翻译、事件关联、检索筛选、收藏、阅读记录与全站日报 API。
 
 ## 技术选型
 
@@ -57,6 +58,7 @@ npm run dev
 npm run lint
 npm run typecheck
 npm test
+npm run test:api
 npm run build
 ```
 

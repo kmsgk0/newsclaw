@@ -12,7 +12,7 @@
 
 ## 命令与通过判定
 
-已提供 `npm test`；浏览器用例与 `npm run test:e2e` 随界面实现建立。README 说明配置、启动依赖、报告位置和一键运行方式。格式、类型及构建检查使用 `npm run lint`、`npm run typecheck`、`npm run build`。
+已提供 `npm test`、`npm run test:api`；浏览器用例与 `npm run test:e2e` 随界面实现建立。README 说明配置、启动依赖、报告位置和一键运行方式。格式、类型及构建检查使用 `npm run lint`、`npm run typecheck`、`npm run build`。
 
 用例失败必须非零退出并阻断合入。跳过的用例说明理由和未覆盖范围，未执行不得报告通过。生成型测试报告、临时取证和敏感原始日志不提交 Git。交付时说明实际检查与结果；任务要求的评审表和运行报告脱敏后按指定位置保存。
 
