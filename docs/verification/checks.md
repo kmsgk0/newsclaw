@@ -38,7 +38,7 @@ npm run check -- --base main
 
 直接依赖固定版本，间接依赖由 `package-lock.json` 锁定。OpenSpec（MIT）负责规格校验，markdown-it（MIT）解析 Markdown，github-slugger（ISC）生成 GitHub 标题锚点。Gitleaks（MIT）作为独立 CLI 使用。
 
-模型调用记录按[SEC-07](security.md#sec-07-调用记录可追溯)检查，完整输出保存在 `.local/verification/`。
+模型调用记录可按需运行 `node --import tsx tests/evaluation/usage-recording.ts`，使用隔离数据库和 HTTP 替身，对照正常与结构失败时的用量。判据及当前结果见[SEC-07](../../reports/security-precheck.md#sec-07-失败调用用量)，完整输出保存在 `.local/verification/`。
 
 ## 文件检查
 

@@ -103,4 +103,4 @@
 node --import tsx --test tests/runtime/model.test.ts tests/editor/editor.test.ts tests/editor/editor-api.test.ts tests/skills/skills.test.ts
 ```
 
-真实模型效果核验使用 `RUN_LIVE_AI=1 node --import tsx tests/evaluation/editor-evaluation.ts`，会调用配置的模型，默认把完整结果写入 `.local/verification/ai-live-results.json`；`EVALUATION_DIR` 可指定其他输出目录。测试材料为 AI 样例中的虚构新闻，数据保存在临时数据库并在结束后移除；普通自动化测试不调用付费模型。执行后记录实际输入、输出及判断。
+真实模型效果核验使用 `RUN_LIVE_AI=1 node --import tsx tests/evaluation/editor-evaluation.ts`，会调用配置的模型，默认把完整结果写入 `.local/verification/ai-live-results.json`；`EVALUATION_DIR` 可指定其他输出目录。测试材料为 AI 样例中的虚构新闻，数据保存在临时数据库并在结束后移除；普通自动化测试不调用付费模型。实际结果见[AI 行为检查](../verification/ai-results.md)。
