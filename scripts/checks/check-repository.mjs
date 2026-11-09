@@ -85,7 +85,7 @@ export function checkRepository(root, baseRef) {
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   const args = process.argv.slice(2);
   if (args.length && (args.length !== 2 || args[0] !== '--base')) {
-    console.error('Usage: node scripts/check-repository.mjs [--base <ref>]');
+    console.error('Usage: npm run check:repo -- [--base <ref>]');
     process.exitCode = 1;
   } else {
     try {

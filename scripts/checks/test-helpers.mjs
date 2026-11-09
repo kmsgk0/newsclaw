@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const scripts = path.dirname(fileURLToPath(import.meta.url));
-export const project = path.dirname(scripts);
+export const project = path.resolve(scripts, "../..");
 export const changeName = '2026-01-01-example';
 export const changePath = `openspec/changes/${changeName}`;
 export function fixture(t) {

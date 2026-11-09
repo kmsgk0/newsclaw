@@ -8,6 +8,44 @@ permissions:
   contents: read
 
 jobs:
+  application-checks:
+    name: Application checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: newsclaw
+          POSTGRES_PASSWORD: isolated-test-password
+          POSTGRES_DB: newsclaw
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U newsclaw -d newsclaw"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7.4-alpine
+        ports: [6379:6379]
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://newsclaw:isolated-test-password@127.0.0.1:5432/newsclaw
+      REDIS_URL: redis://127.0.0.1:6379
+      CHAT_BASE_URL: http://127.0.0.1:4999/v1
+      CHAT_API_KEY: synthetic-fixture
+      CHAT_MODEL: fixture
+      EMBEDDING_BASE_URL: http://127.0.0.1:4999/v1
+      EMBEDDING_API_KEY: synthetic-fixture
+      EMBEDDING_MODEL: fixture
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run lint && npm run typecheck
+      - run: npm test
+      - run: npm run build
   repository-checks:
     name: Repository checks
     runs-on: ubuntu-latest

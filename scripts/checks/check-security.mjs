@@ -10,7 +10,7 @@ export function scanSecrets(root, extraPaths = [], { quiet = false } = {}) {
   const binary = process.env.GITLEAKS_BIN || 'gitleaks';
   const installed = spawnSync(binary, ['version'], { encoding: 'utf8' });
   if (installed.error || installed.status !== 0 || installed.stdout.trim().replace(/^v/, '') !== version) {
-    throw new Error(`Gitleaks ${version} is required. Set GITLEAKS_BIN to the installed binary; see docs/checks.md.`);
+    throw new Error(`Gitleaks ${version} is required. Set GITLEAKS_BIN to the installed binary; see docs/verification/checks.md.`);
   }
   function scan(args, label) {
     const result = spawnSync(binary, [...args, '--redact=100', '--no-banner', '--verbose', '--exit-code', '9'], {
