@@ -26,7 +26,7 @@ NewsClaw 将公共新闻、个人编辑和持续跟进放在同一个阅读空�
 | 个人编辑 | EDITOR-01 至 EDITOR-06 | [编辑规格](../openspec/specs/personal-editor/spec.md) |
 | 阅读技能 | SKILL-01 至 SKILL-04 | [技能规格](../openspec/specs/editor-skills/spec.md) |
 | 专题与洞察 | TOPIC-01 至 TOPIC-06 | [专题规格](../openspec/specs/topics-and-insights/spec.md) |
-| 运行与恢复 | OPS-01 至 OPS-05 | [运行规格](../openspec/specs/runtime-operations/spec.md) |
+| 运行与恢复 | OPS-01 至 OPS-06 | [运行规格](../openspec/specs/runtime-operations/spec.md) |
 | 阅读界面 | UI-01 至 UI-04 | [界面规格](../openspec/specs/reading-interface/spec.md) |
 
 ## 工程规范
@@ -46,3 +46,4 @@ NewsClaw 将公共新闻、个人编辑和持续跟进放在同一个阅读空�
 | 专题与持续跟进 | 新闻、编辑与技能 | [专题与洞察](../openspec/changes/archive/2026-11-09-topics-and-insights/proposal.md)、[任务](../openspec/changes/archive/2026-11-09-topics-and-insights/tasks.md) |
 | 阅读界面 | 所有业务接口 | [阅读界面](../openspec/changes/archive/2026-11-09-reading-interface/proposal.md)、[任务](../openspec/changes/archive/2026-11-09-reading-interface/tasks.md) |
 | 自动验收与报告 | 应用及已有检查 | [自动验收](../openspec/changes/archive/2026-11-09-automated-acceptance/proposal.md)、[任务](../openspec/changes/archive/2026-11-09-automated-acceptance/tasks.md) |
+| 应用问题修复 | 首次检查及自动验收 | [用量、文档与日报](../openspec/changes/archive/2026-11-10-application-corrections/proposal.md)、[任务](../openspec/changes/archive/2026-11-10-application-corrections/tasks.md) |

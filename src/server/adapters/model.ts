@@ -9,7 +9,7 @@ export interface ChatMessage { role: 'system' | 'user' | 'assistant' | 'tool'; c
 export interface ToolDefinition { type: 'function'; function: { name: string; description: string; parameters: Record<string, unknown> } }
 export interface ChatResult { content: string; toolCalls: ToolCall[]; usage: ModelUsage }
 export class ModelError extends AppError {
-  constructor(message: string, public retryable = true, public issues: { path: string; code: string }[] = []) { super(503, 'DEPENDENCY_UNAVAILABLE', message); }
+  constructor(message: string, public retryable = true, public issues: { path: string; code: string }[] = [], public usage?: ModelUsage) { super(503, 'DEPENDENCY_UNAVAILABLE', message); }
 }
 export const emptyUsage = (): ModelUsage => ({ inputTokens: null, outputTokens: null, totalTokens: null });
 export function readUsage(value: unknown): ModelUsage {
@@ -59,15 +59,18 @@ export class ModelClient {
         { role: 'user', content: JSON.stringify(input) },
       ],
     }, signal);
+    let usage = emptyUsage();
     try {
-      const payload = z.object({ choices: z.array(z.object({ message: z.object({ content: z.string() }) })).min(1), usage: z.unknown().optional() }).parse(await response.json());
+      const body = await response.json() as { usage?: unknown } | null;
+      usage = readUsage(body?.usage);
+      const payload = z.object({ choices: z.array(z.object({ message: z.object({ content: z.string() }) })).min(1) }).parse(body);
       const raw = payload.choices[0].message.content.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
       const result = schema.safeParse(JSON.parse(raw));
-      if (!result.success) throw new ModelError('模型结果结构无效，请重试', true, result.error.issues.map(issue => ({ path: issue.path.join('.'), code: issue.code })));
-      return { value: result.data, usage: readUsage(payload.usage) };
+      if (!result.success) throw new ModelError('模型结果结构无效，请重试', true, result.error.issues.map(issue => ({ path: issue.path.join('.'), code: issue.code })), usage);
+      return { value: result.data, usage };
     } catch (error) {
       if (error instanceof ModelError) throw error;
-      throw new ModelError('模型结果结构无效，请重试', true, error instanceof z.ZodError ? error.issues.map(issue => ({ path: issue.path.join('.'), code: issue.code })) : [{ path: 'response.content', code: 'invalid_json' }]);
+      throw new ModelError('模型结果结构无效，请重试', true, error instanceof z.ZodError ? error.issues.map(issue => ({ path: issue.path.join('.'), code: issue.code })) : [{ path: 'response.content', code: 'invalid_json' }], usage);
     }
   }
   async embed(text: string, signal?: AbortSignal): Promise<number[]> {

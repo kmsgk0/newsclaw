@@ -67,9 +67,9 @@ sh scripts/acceptance.sh
 
 报告按 NewsClaw 业务能力展示用例及需求编号，支持查找失败、查看阶段日志和浏览器材料。单项开发检查、运行条件及报告说明见[检查入口](docs/verification/checks.md)。
 
-验收默认包含 [SEC-07 模型调用用量检查](reports/security-precheck.md#sec-07-失败调用用量)。当前结构校验失败时会丢失模型已返回的用量，该用例会使验收返回退出码 1，报告显示失败原因和实际用量记录。
+验收默认包含 SEC-07 模型调用用量与 OpenAPI 文档检查。用量缺失、文档不可用或其他检查失败时返回非零，并在报告中显示实际结果。首次发现及处理结果见[修复记录](reports/security-fix-log.md)。
 
-[正式报告](reports/README.md)汇总安全、权限、并发、事务和异步结果；[代码审查](docs/verification/code-review.md)列明已登记的待修改项；[AI 评测](docs/verification/ai-results.md)记录真实模型输出与内容质量。源码与运行依赖见[依赖说明](docs/dependencies.md)。
+[正式报告](reports/README.md)汇总安全、权限、并发、事务和异步结果；[代码审查](docs/verification/code-review.md)列明检查范围及问题处理结果；[AI 评测](docs/verification/ai-results.md)记录真实模型输出与内容质量。源码与运行依赖见[依赖说明](docs/dependencies.md)。
 
 ## 协作
 
