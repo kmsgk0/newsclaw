@@ -7,10 +7,10 @@ context: |
   NewsClaw is a personalized AI news reading platform.
   Stack: React Router, TypeScript, Tailwind CSS, Node.js, Fastify, PostgreSQL, Docker Compose.
   Read AGENTS.md, CONTRIBUTING.md and the applicable docs/standards files before editing artifacts.
-  Product goals, requirements, design and pending work live in docs/product/; openspec/specs holds implemented and verified contracts.
-  Select one deliverable scope from the product plan for each change, preserve requirement identifiers, and include its tests and documentation.
-  On completion, archive that change and link delivered requirements to current specs; keep remaining product goals in the plan.
-  For model, prompt or skill behavior read docs/standards/ai.md and docs/evaluation/ai-cases.md; for data changes read docs/standards/data.md.
+  docs/README.md is the documentation entry; docs/architecture.md explains current architecture, and openspec/specs holds current behavior contracts. Active changes carry undelivered scope and implementation tasks.
+  Select one deliverable scope for each change, preserve requirement identifiers, and include its tests and documentation. Keep source, test, script and document responsibilities explicit in design.
+  On completion, sync current specs and archive that change; keep remaining confirmed goals in their corresponding changes.
+  For model, prompt or skill behavior read docs/standards/ai.md and docs/verification/ai-cases.md; for data changes read docs/standards/data.md.
   Use docs/standards/review.md for applicable checks and report actual results.
   All repository changes, including tools, configuration and documentation, use OpenSpec before implementation.
   Before implementation, ensure the proposal, design, scenarios and tasks cover the intended changes.

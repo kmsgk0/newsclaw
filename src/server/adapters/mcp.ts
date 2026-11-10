@@ -37,8 +37,8 @@ export async function createNewsMcp(ctx: AppContext, actor: Actor, allowedSource
   server.registerTool('news_read', { description: 'Read a report by its news identifier.', inputSchema: z.object({ id: z.string().uuid() }).strict() }, ({ id }) => execute(async () => ({ items: [await news.get(id, actor)] })));
   server.registerTool('events_read', { description: 'Read an event and its associated reports.', inputSchema: z.object({ id: z.string().uuid() }).strict() }, ({ id }) => execute(async () => ({ event: await news.event(id), items: await news.materials(actor, { kind: 'event', id }) })));
   server.registerTool('materials_read', {
-    description: 'Read explicitly selected news, event or own favorites. Private resources always use the authenticated account.',
-    inputSchema: z.object({ kind: z.enum(['news', 'event', 'favorites']), id: z.string().uuid().optional() }).strict(),
+    description: 'Read explicitly selected news, event, own favorites or own topic. Private resources always use the authenticated account.',
+    inputSchema: z.object({ kind: z.enum(['news', 'event', 'favorites', 'topic']), id: z.string().uuid().optional() }).strict(),
   }, scope => execute(async () => ({ items: await news.materials(actor, scope) })));
   const client = new Client({ name: 'newsclaw-editor', version: '1.0.0' });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();

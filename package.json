@@ -15,16 +15,18 @@
     "test:checks": "node --test scripts/checks/test-checks.mjs",
     "test:security": "node --test scripts/checks/test-security.mjs",
     "dev": "tsx watch src/server/index.ts",
+    "dev:web": "vite",
     "worker": "tsx src/server/worker.ts",
     "migrate": "tsx src/server/migrate.ts",
     "seed": "tsx src/server/seed.ts",
-    "lint": "eslint src tests apitest",
+    "lint": "eslint src tests apitest vite.config.ts playwright.config.ts",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.server.json",
+    "build": "tsc -p tsconfig.server.json && vite build",
     "start": "node dist/server/index.js",
     "start:worker": "node dist/server/worker.js",
     "test": "node --import tsx --test \"tests/**/*.test.ts\"",
-    "test:api": "node --import tsx --test --test-concurrency=1 apitest/cases/*.test.ts"
+    "test:api": "node --import tsx --test --test-concurrency=1 apitest/cases/*.test.ts",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
     "@fission-ai/openspec": "1.14.3",

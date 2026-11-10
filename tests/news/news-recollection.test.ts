@@ -4,6 +4,7 @@ import {createServer} from 'node:http';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {editorEnvironment} from '../support/editor-fixture.js';
+import {createTopicHandlers} from '../../src/server/modules/topics/service.js';
 import {NewsService,createNewsHandlers} from '../../src/server/modules/news/service.js';
 import type {TaskHandlers} from '../../src/server/runtime/tasks.js';
 for (const withSummary of [false,true]) test(`NEWS-01/02 original-page failure preserves full material when RSS provides ${withSummary?'a summary':'only a title'}`,async()=>{
@@ -32,7 +33,7 @@ for (const withSummary of [false,true]) test(`NEWS-01/02 original-page failure p
     const service=new NewsService(env.ctx),address=server.address();
     assert.ok(address&&typeof address!=='string');
     const source=await service.saveSource({name:'Source feed',kind:'rss',url:`http://127.0.0.1:${address.port}/feed`,enabled:true,config:{fetchArticle:true}});
-    const handlers:TaskHandlers={...createNewsHandlers(env.ctx),journal:async()=>{throw new Error('Unused');}};
+    const handlers:TaskHandlers={...createNewsHandlers(env.ctx),...createTopicHandlers(env.ctx),journal:async()=>{throw new Error('Unused');}};
     const collect=async()=>{
       const task=await env.ctx.tasks.submit(null,'collect',{sourceId:source.id},randomUUID());
       return env.ctx.tasks.execute({taskId:task.id,generation:task.generation},handlers);

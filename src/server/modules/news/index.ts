@@ -18,7 +18,7 @@ export async function registerNews(app: FastifyInstance,ctx: AppContext) {
   app.get('/api/v1/news/:id',{config:{public:true},schema:{tags:['新闻'],summary:'新闻详情',params:json(idSchema)}},async request=>service.get(idSchema.parse(request.params).id,request.actor));
   const eventSearch=z.object({q:z.string().max(500).optional(),page:z.coerce.number().int().min(1).default(1),pageSize:z.coerce.number().int().min(1).max(100).default(20)}).strict();
   app.get('/api/v1/events',{config:{public:true},schema:{tags:['新闻'],summary:'搜索全部事件',querystring:json(eventSearch)}},async request=>repo.events(eventSearch.parse(request.query)));
-  app.get('/api/v1/events/:id',{config:{public:true},schema:{tags:['新闻'],summary:'事件报道与时间线',params:json(idSchema)}},async request=>service.event(idSchema.parse(request.params).id));
+  app.get('/api/v1/events/:id',{config:{public:true},schema:{tags:['新闻'],summary:'事件报道、时间线与关系',params:json(idSchema)}},async request=>service.event(idSchema.parse(request.params).id,request.actor));
   const librarySchema=z.object({kind:z.enum(['favorites','history']).default('favorites'),page:z.coerce.number().int().min(1).default(1),pageSize:z.coerce.number().int().min(1).max(100).default(20)}).strict();
   app.get('/api/v1/library',{schema:{tags:['阅读记录'],summary:'本人的收藏或阅读历史',querystring:json(librarySchema)}},async request=>{const q=librarySchema.parse(request.query);return repo.library(request.actor!.id,q.kind,q.page,q.pageSize);});
   app.post('/api/v1/news/:id/read',{schema:{tags:['阅读记录'],params:json(idSchema)}},async request=>repo.read(request.actor!.id,idSchema.parse(request.params).id));

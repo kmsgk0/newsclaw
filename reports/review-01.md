@@ -43,4 +43,4 @@ npm audit --json
 
 以上命令均以退出码 `0` 完成。OpenSpec、仓库文件与提交引用检查通过，25 项工具测试通过，输出见[完整检查记录](2026-11-06-security-review/repository-checks.txt)及[安全基线](security-baseline.md)。工具测试中的合成凭据和失败进程用于验证检查器的拒绝行为，未计为业务安全问题。
 
-本次文档与现有工具范围可用。业务自查、异步运行、构建产物检查和协作者复测见[安全检查方案](../docs/security-checks.md)及[实施路线图](../docs/product/roadmap.md#8-页面与集成验证)，当前均保留待执行。
+本次文档与现有工具范围可用。业务自查、异步运行、构建产物检查和协作者复测见[安全检查方案](../docs/verification/security.md)及[实施路线图](../docs/usage.md)，当前均保留待执行。

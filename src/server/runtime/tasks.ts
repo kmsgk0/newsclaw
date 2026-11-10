@@ -37,7 +37,7 @@ export interface TaskRun {
 export type TaskHandler = (task: TaskRecord, run: TaskRun) => Promise<{
   commit: (tx: Db) => Promise<Record<string, unknown>>;
 }>;
-export type TaskHandlers = Partial<Record<TaskType, TaskHandler>>;
+export type TaskHandlers = Record<TaskType, TaskHandler>;
 export function redisOptions(url: string) {
   const u = new URL(url);
   return { host: u.hostname, port: Number(u.port || 6379), username: u.username ? decodeURIComponent(u.username) : undefined, password: u.password ? decodeURIComponent(u.password) : undefined, db: Number(u.pathname.slice(1) || 0), ...(u.protocol === 'rediss:' ? { tls: {} } : {}), maxRetriesPerRequest: null };
@@ -174,9 +174,7 @@ export class TaskService {
         throw new AppError(409, 'CONFLICT', '任务已达到重试次数上限');
       await this.authorizeTask(task, this.db);
       const abort = signal ?? AbortSignal.timeout(this.config.modelTimeoutMs * 4);
-      const handler = handlers[task.type];
-      if (!handler) throw new AppError(400, 'INVALID_INPUT', '当前版本不支持此任务类型');
-      const result = await handler(task, { executionId, signal: abort, attempt: task.attempts });
+      const result = await handlers[task.type](task, { executionId, signal: abort, attempt: task.attempts });
       abort.throwIfAborted();
       const saved = await this.db.tx(async (tx) => {
         const current = await tx.one<TaskRecord>(`SELECT * FROM tasks WHERE id=$1 AND generation=$2 AND execution_id=$3 AND status='running' FOR UPDATE`, [task.id, task.generation, executionId]);

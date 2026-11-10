@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { EditorService, validateCitations } from '../../src/server/modules/editor/service.js';
 import { EditorRepository } from '../../src/server/modules/editor/repository.js';
 import { SkillsService } from '../../src/server/modules/skills/service.js';
+import { createNewsMcp } from '../../src/server/adapters/mcp.js';
 import { createEditorHandlers, prepareJournalInput, preparePersonalDailyInput } from '../../src/server/modules/editor/background.js';
 import type { TaskRecord } from '../../src/server/runtime/tasks.js';
 import { editorEnvironment } from '../support/editor-fixture.js';
@@ -32,6 +33,36 @@ test('EDITOR-01/05 settings and explicit memories persist with account isolation
     await repository.editMemory(env.a.id,memory!.id);
     assert.equal((await repository.memories(env.a.id)).length,0);
     assert.equal((await env.ctx.db.one('SELECT origin FROM memories WHERE id=$1',[memory!.id]))!.origin,'manual');
+  } finally {await env.cleanup();}
+});
+
+test('EDITOR-02/03 MCP-backed streaming preserves citations and private conversation history', async () => {
+  const env=await editorEnvironment();
+  try {
+    const service=new EditorService(env.ctx);
+    const conversation=await service.createConversation(env.a,'试用解读',{kind:'news',id:env.newsId});
+    await assert.rejects(service.conversation(env.b,conversation!.id),{code:'NOT_FOUND'});
+    await assert.rejects(service.prepare(env.a,conversation!.id,{content:'  '}),{code:'INVALID_INPUT'});
+    await assert.rejects(service.prepare(env.a,conversation!.id,{content:'读取',context:{kind:'news',id:randomUUID()}}),{code:'NOT_FOUND'});
+    assert.equal((await service.conversation(env.a,conversation!.id)).messages.length,0);
+    env.state.mode='tool';
+    const prepared=await service.prepare(env.a,conversation!.id,{content:'何时试用，价格多少？'});
+    await assert.rejects(service.prepare(env.a,conversation!.id,{content:'同时追问'}),{code:'CONFLICT'});
+    const events:{name:string;data:unknown}[]=[];
+    await service.execute(prepared,(name,data)=>events.push({name,data}),undefined,'fixture-request');
+    assert.ok(events.some(event=>event.name==='complete')); assert.ok(events.filter(event=>event.name==='text').length>=2);
+    const restored=await service.conversation(env.a,conversation!.id);
+    assert.equal(restored.messages.length,2);assert.equal(restored.messages[1].status,'completed');
+    assert.equal(restored.messages[1].sources[0].id,env.newsId);
+    assert.match(restored.messages[1].content,/价格尚未公布/);
+    assert.equal((await env.ctx.db.query("SELECT * FROM activities WHERE user_id=$1 AND kind='question'",[env.a.id])).length,1);
+    const mcp=await createNewsMcp(env.ctx,env.a);
+    try {
+      await assert.rejects(mcp.call('news_read',{id:env.newsId,userId:env.b.id}),{code:'INVALID_INPUT'});
+      const topic=await env.ctx.db.one<{id:string}>(`INSERT INTO topics(user_id,name,filter) VALUES($1,'私人专题','{"query":"云杉"}') RETURNING id`,[env.b.id]);
+      await assert.rejects(mcp.call('materials_read',{kind:'topic',id:topic!.id}),{code:'NOT_FOUND'});
+      await assert.rejects(mcp.call('materials_read',{kind:'topic',id:randomUUID()}),{code:'NOT_FOUND'});
+    } finally {await mcp.close();}
   } finally {await env.cleanup();}
 });
 

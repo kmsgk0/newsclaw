@@ -46,6 +46,8 @@ jobs:
       - run: npm run lint && npm run typecheck
       - run: npm test && npm run test:api
       - run: npm run build
+      - run: npx playwright install chromium --only-shell --with-deps
+      - run: npm run test:e2e
   repository-checks:
     name: Repository checks
     runs-on: ubuntu-latest
