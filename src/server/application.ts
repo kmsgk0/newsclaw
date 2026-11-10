@@ -10,6 +10,8 @@ import { TaskService } from './runtime/tasks.js';
 import { logger } from './logger.js';
 
 
+import { registerSkills } from './modules/skills/index.js';
+import { registerEditor } from './modules/editor/index.js';
 import { registerNews } from './modules/news/index.js';
 
 export function createContext(config:Config=loadConfig()):AppContext {
@@ -19,7 +21,7 @@ export function createContext(config:Config=loadConfig()):AppContext {
 export async function closeContext(ctx:AppContext) {await ctx.tasks.close();await ctx.model.close();await ctx.db.close();}
 export async function createApp(ctx:AppContext) {
   const app=await createBaseApp(ctx);
-  await registerNews(app,ctx);
+  await registerNews(app,ctx);await registerEditor(app,ctx);await registerSkills(app,ctx);
   const web=path.resolve('dist/web');
   if(existsSync(path.join(web,'index.html'))) {
     await app.register(staticFiles,{root:web,prefix:'/'});
