@@ -81,4 +81,4 @@ HTML 转为 Markdown，保留标题、段落、列表、引用、表格、代码
 
 ## 检查
 
-[来源解析](../../tests/news/news-sources.test.ts)检查结构化 HTML、Atom 和 Markdown；[内容质量](../../tests/news/news-quality.test.ts)检查语言、分类、完整翻译、更新失败与批次处理；[管理与日期](../../tests/news/news-management.test.ts)检查权限、事件、重处理及业务日期。[新闻集成测试](../../tests/news/news.integration.test.ts)覆盖去重、检索、收藏及日报，[原文失败测试](../../tests/news/news-recollection.test.ts)检查已有内容保留。真实新闻与模型效果按 [AI 样例](../verification/ai-cases.md)另行检查。
+[来源解析](../../tests/news/news-sources.test.ts)检查结构化 HTML、Atom 和 Markdown；[内容质量](../../tests/news/news-quality.test.ts)检查语言、分类、完整翻译、更新失败与批次处理；[管理与日期](../../tests/news/news-management.test.ts)检查权限、事件、重处理及业务日期。[新闻集成测试](../../tests/news/news.integration.test.ts)覆盖去重、检索、收藏及日报，[原文失败测试](../../tests/news/news-recollection.test.ts)检查已有内容保留。真实新闻和模型检查结果见[AI 评测](../verification/ai-results.md)。

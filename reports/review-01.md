@@ -1,46 +1,38 @@
-# 仓库文档与检查工具审查
+# 安全检查评审记录
 
-日期：2026-11-06。检查基线为 `8b66aba1b81c50888da6b0b460fe01759cd7fb64` 及 `2026-11-06-security-review` 工作区内容。执行者为 Codex，方式为 AI 阅读与本地脚本运行；协作者独立复测尚未执行。
+检查日期：2026-11-09。检查方式为 AI 辅助代码阅读与接口检查，范围为 SEC-01 未登录访问和 SEC-02 跨账号隔离。版本与环境见[报告索引](README.md)，判断依据为 ACC-03、ACC-04 和[安全检查方法](../docs/verification/security.md)。
 
-范围包括产品与工程文档、现有 npm 检查脚本和 PR workflow。审查依据为 STD-05 至 STD-07、FLOW-06 至 FLOW-10，以及所引用的产品需求。业务接口与运行环境尚未实现，相关行为保留待验证。
+## 身份与方法
 
-## 文件与检查结果
+使用未登录调用方和普通账号 A、B。A 创建私人会话、记忆、个人技能副本及日报任务，B 使用自己的令牌访问这些对象。账号和新闻均为合成数据，对象标识取自实际创建结果。
 
-| 对象 | 手段与判据 | 实际结果 | 结论 |
+[编辑接口用例](../tests/editor/editor-api.test.ts)通过 Fastify `app.inject` 调用应用路由，使用隔离数据库和模型 HTTP 替身，断言每项响应。结果与[应用安全检查](security-precheck.md)中的对应操作对照。
+
+## 判据与结果
+
+以下路径省略 `/api/v1`。
+
+| 检查项 | 操作与对象 | 判据 | 实际结果与结论 |
 | --- | --- | --- | --- |
-| `docs/security-checks.md` | 对照产品需求，核对身份、操作、响应与数据库断言 | 七项检查、权限／并发／事务复核、问答样例和记录位置齐备；公共新闻与本人配置权限保留 | 可用 |
-| `docs/standards/review.md` | 核对七类对象、七个维度及结论依据 | 有明确检查手段与记录字段，未适用和未执行项有说明方式 | 可用 |
-| `docs/standards/security.md`、`testing.md`、`operations.md` | 核对安全方法入口、证据处理与调用追溯要求 | 入口一致，日志目标涵盖操作人、对象、技能、结果、耗时及实际用量 | 可用 |
-| `docs/product/requirements/runtime-operations.md` | 对照 OPS-04 与现有场景，核对内容保全 | 补充调用追溯目标，原需求编号与场景保留，仍属于待实现产品需求 | 可用 |
-| `docs/product/design.md`、`roadmap.md` | 对照异步设计和安全检查安排 | 命令统一使用 npm；原业务任务保留，新增安全自查任务未勾选 | 可用 |
-| `README.md`、`AGENTS.md`、`docs/checks.md` | 从入口走读并运行链接检查 | 可进入检查方案、评审方法和报告，命令指向现有实现 | 可用 |
-| 本变更的 proposal、design、specs、tasks | OpenSpec 严格校验及需求与 diff 核对 | 规约覆盖实际文档和记录工作，业务运行状态与当前产物一致 | 可用 |
-| `scripts/check-repository.mjs` | 阅读文件枚举、链接和 diff 检查，运行对应失败用例 | 断链、锚点、仓库外路径、忽略文件、冲突与空白问题均被检测 | 可用 |
-| `scripts/check-commits.mjs` | 阅读按提交树核对规约的实现，运行真实提交及合成用例 | 当前范围 1 个提交引用有效；缺失依据及错误编号被拒绝 | 可用 |
-| `scripts/check-security.mjs` | 阅读版本检查、脱敏、退出码与扫描范围，运行真实扫描和失败用例 | 历史与当前文件无命中，依赖审计无漏洞；缺失工具及审计失败均非零退出 | 可用 |
-| `scripts/check.mjs`、`.github/workflows/pr-checks.yml` | 核对命令、顺序及失败传播 | 本地与 PR 调用同一组 npm 实现，完整检查首个失败即结束；workflow 本次未改变 | 可用 |
-| `scripts/test-checks.mjs`、`test-security.mjs`、`test-helpers.mjs` | 阅读临时仓库、合成数据与断言，运行全部工具测试 | 19 项仓库与提交检查测试、6 项安全工具测试通过，临时数据与项目文件分离 | 可用 |
+| SEC-01 私人入口 | 匿名 GET `/editor`、`/conversations`、`/memories`、`/editor/digests`、`/editor/journals`、`/skills/mine` | 六个入口均返回 401 | 六项均为 401，绿 |
+| SEC-01 公开对照 | 匿名 GET `/skills` | 返回 200 | 200，绿 |
+| SEC-02 会话 | B GET A 的 `/conversations/:id` | 返回 404 | 404，绿 |
+| SEC-02 记忆 | B GET A 的 `/memories/:id`，再 PATCH 其内容 | 读取与修改均返回 404 | 两项均为 404，绿 |
+| SEC-02 个人技能 | B PATCH A 的 `/skills/mine/:id`，尝试停用副本 | 返回 404 | 404，绿 |
+| SEC-02 私人任务 | A 提交日报生成请求，B GET 返回的任务状态地址 | A 收到 202 和任务标识；B 查询返回 404 | 202、有效任务标识及 404，绿 |
 
-## 七个维度的核对
+六个私人入口均在安全自查的九个入口清单内，返回结果一致。记忆检查中，安全自查由 A 访问 B 的对象，本记录由 B 访问 A 的对象，读取和修改均为 404。会话、技能和私人任务也符合账号隔离要求。
 
-| 维度 | 本次判断 |
-| --- | --- |
-| 需求覆盖 | 安全方法、评审口径及报告组织对应 STD-05 至 STD-07，原有功能和需求保留 |
-| 需求一致性 | 公共内容、本人配置与公共管理分别遵循产品权限；文档命令与实际 npm 入口一致 |
-| 失败路径 | 工具测试覆盖无效文件、规约引用、缺失扫描器、密钥命中及审计异常 |
-| 查询性能 | 当前工具无业务数据库查询；业务索引、分页与查询性能在实现后按检查方案验证 |
-| 重复逻辑 | 文档与 workflow 复用既有 npm 实现，检查方法通过链接集中维护 |
-| 漏洞风险 | 当前扫描 0 命中，锁文件审计 0 漏洞；业务权限、输入和运行日志尚待实测 |
-| 高风险场景 | 权限、并发、事务已有具体身份、操作和数据判据，运行证据由对应实施任务产生 |
-
-## 执行证据
+## 检查入口
 
 ```sh
-npm run check -- --base origin/main
-npm run check:security
-npm audit --json
+node --import tsx --test --test-name-pattern='HTTP routes validate' tests/editor/editor-api.test.ts
 ```
 
-以上命令均以退出码 `0` 完成。OpenSpec、仓库文件与提交引用检查通过，25 项工具测试通过，输出见[完整检查记录](2026-11-06-security-review/repository-checks.txt)及[安全基线](security-baseline.md)。工具测试中的合成凭据和失败进程用于验证检查器的拒绝行为，未计为业务安全问题。
+已执行记录中的对应输出：
 
-本次文档与现有工具范围可用。业务自查、异步运行、构建产物检查和协作者复测见[安全检查方案](../docs/verification/security.md)及[实施路线图](../docs/usage.md)，当前均保留待执行。
+```text
+✔ EDITOR/SKILL HTTP routes validate inputs, isolate resources and return actual SSE events
+```
+
+本记录所列操作均符合预期。成员独立复现尚未执行。

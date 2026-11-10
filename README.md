@@ -69,7 +69,7 @@ npm run test:e2e
 
 自动测试使用独立 PostgreSQL 数据库、Redis 队列及模型和信源替身，不调用真实模型。测试账号需能够创建临时数据库。完整入口 `make check` 先执行仓库与安全检查，再运行上述应用检查。单独的 `npm run check -- --base main` 保持仓库检查范围，需先按[检查说明](docs/verification/checks.md)准备 Gitleaks。
 
-安全、权限、并发、事务和 AI 内容质量按[检查方法](docs/verification/security.md)核对并记录实际结果。源码与运行依赖见[依赖说明](docs/dependencies.md)。
+[检查报告](reports/README.md)汇总安全、权限、并发、事务和异步结果；[代码审查](docs/verification/code-review.md)列明文件检查与待修改项；[AI 评测](docs/verification/ai-results.md)记录样例输出与内容质量。源码与运行依赖见[依赖说明](docs/dependencies.md)。
 
 ## 协作
 
