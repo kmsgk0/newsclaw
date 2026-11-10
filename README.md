@@ -2,18 +2,16 @@
 
 个性化 AI 新闻阅读平台。将不同来源的资讯整理到一起，由专属 AI 编辑结合阅读兴趣提供新闻解读、个人日报和持续跟进。
 
-当前仓库包含完整产品规划、工程规范与自动检查工具，应用功能尚未实现。
+当前提供可运行的 API 与后台 Worker。已实现能力通过接口调用，Web 阅读界面继续按产品规划开发。
 
-## 功能规划
+## 已实现能力
 
-- **资讯中心**：多来源聚合、筛选、摘要、翻译、事件整理、搜索和收藏，保留报道来源。
-- **专属编辑**：带来源的新闻问答、个人日报、长期记忆、编辑手记和站内更新提醒。
-- **技能广场**：通俗解读、多源对比、专题简报、思维导图和双语阅读，支持安装、修改、启停与分享。
-- **热点与专题**：热点趋势、事件时间线、私人笔记、新闻知识图谱及阅读成果保存与分享。
+- **应用基础与账号**：账号注册登录、刷新、退出和改密，编辑初始化、角色校验，以及 API、Worker、数据库迁移、任务运行和备份工具。
+- **共享新闻与阅读**：多来源采集、正文整理、摘要翻译、事件关联、检索筛选、收藏、阅读记录与全站日报 API。
 
 ## 技术选型
 
-- 前端：React Router、TypeScript、Tailwind CSS。
+- 前端规划：React Router、TypeScript、Tailwind CSS。
 - 后端与数据：Node.js、Fastify、PostgreSQL。
 - AI 与运行：远程模型 API、MCP 工具、Redis + BullMQ 后台任务、Docker Compose。
 
@@ -21,29 +19,50 @@
 
 | 内容 | 入口 |
 | --- | --- |
-| 目标与完整需求 | [产品规划与能力索引](docs/product/README.md) |
-| 架构与数据关系 | [总体设计](docs/product/design.md) |
-| 实施安排与后续任务 | [实施路线图](docs/product/roadmap.md) |
-| 已交付合同与当前变更 | [现行规格](openspec/specs/)、[变更目录](openspec/changes/) |
-| 开发规则与工程规范 | [AGENTS.md](AGENTS.md#工程规范入口) |
-| 规约、实施、验证与开发记录 | [开发指南](CONTRIBUTING.md) |
-| 模型行为与评测样例 | [AI 应用规范](docs/standards/ai.md)、[AI 评测样例](docs/evaluation/ai-cases.md) |
-| 数据管理与变更检查 | [数据规范](docs/standards/data.md)、[评审与完成定义](docs/standards/review.md) |
-| 本地与 PR 自动检查 | [仓库检查](docs/checks.md) |
-| 安全检查与实际记录 | [检查方法](docs/security-checks.md)、[报告索引](reports/README.md) |
+| 当前接口、运行与开发说明 | [文档导航](docs/README.md) |
+| 完整产品目标与未实现能力 | [产品规划](docs/product/README.md)、[路线图](docs/product/roadmap.md) |
+| 架构与数据关系 | [系统架构](docs/architecture.md) |
+| 已实现行为与变更任务 | [现行规格](openspec/specs/)、[变更目录](openspec/changes/) |
+| 开发规则与流程 | [AGENTS.md](AGENTS.md)、[开发指南](CONTRIBUTING.md) |
+| 自动检查 | [检查入口](docs/verification/checks.md) |
 
-## 查看与校验
+## 运行
 
-安装 Node.js 20.19.0 或以上版本后，可以克隆仓库并安装检查工具：
+准备 Docker Compose；本地开发另需 Node.js 24 或更新版本。克隆后复制配置示例，填写数据库口令及服务配置：
 
 ```sh
 git clone https://github.com/kmsgk0/newsclaw.git
 cd newsclaw
-npm ci --ignore-scripts --no-audit --no-fund
-npm run check:specs
+cp .env.example .env
+# 填写 .env 中的服务地址、模型名称与凭据
+docker compose up --build -d
 ```
 
-完整检查使用 `npm run check -- --base main`，需先准备 Gitleaks；安装方式、各检查项及失败处理见[仓库检查](docs/checks.md)。面向 `main` 的 PR 自动执行仓库检查和安全检查。
+API 监听 `http://localhost:3100`，`/health` 返回依赖就绪状态，`/live` 返回进程状态。注册与管理角色初始化见[账号说明](docs/modules/account.md)。
+
+本地开发：
+
+```sh
+npm ci
+docker compose up -d db redis
+npm run migrate
+npm run seed
+npm run dev
+```
+
+另开终端运行 `npm run worker`。配置、任务与恢复见[运行说明](docs/runtime.md)。
+
+## 检查
+
+```sh
+npm run lint
+npm run typecheck
+npm test
+npm run test:api
+npm run build
+```
+
+构建命令编译服务端。自动测试使用隔离 PostgreSQL、Redis 及可控外部服务，不调用真实模型；测试数据库账号需能创建临时数据库。完整入口为 `make check`，单独的 `npm run check -- --base main` 保持仓库检查范围；Gitleaks 与环境准备见[检查说明](docs/verification/checks.md)。
 
 ## 协作
 

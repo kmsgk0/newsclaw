@@ -18,6 +18,7 @@ build/
 coverage/
 test-results/
 playwright-report/
+/reports/evidence/
 
 # Local runtime data and scratch files
 /data/

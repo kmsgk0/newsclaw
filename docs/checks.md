@@ -1,10 +1,10 @@
 # 仓库检查
 
-检查覆盖 OpenSpec、仓库文档、提交的规约引用、密钥和工具依赖。本地与 GitHub Actions 复用同一套 npm 命令，需求依据见[开发流程规格](../openspec/specs/contribution-workflow/spec.md)。应用运行与业务测试在相应功能实现后接入。
+`npm run check` 覆盖 OpenSpec、仓库文档、提交的规约引用、安全及工具测试，不依赖业务服务或模型调用。`make check` 先运行这一仓库检查，再执行应用静态、类型、行为、接口及服务端构建检查；数据库与 Redis 需按运行说明准备。本地与 GitHub Actions 复用同一套单项 npm 命令，需求依据见[开发流程规格](../openspec/specs/contribution-workflow/spec.md)。
 
 ## 准备与运行
 
-需要 Node.js 20.19.0 或以上版本、npm、Git 和 Gitleaks 8.30.1；CI 使用 Node.js 24。安装锁文件中的依赖后运行：
+需要 Node.js 24 或以上版本、npm、Git 和 Gitleaks 8.30.1；CI 使用 Node.js 24。安装锁文件中的依赖后运行：
 
 ```sh
 npm ci --ignore-scripts --no-audit --no-fund
@@ -22,15 +22,22 @@ npm run check -- --base main
 
 | 命令 | 内容 |
 | --- | --- |
-| `npm run check -- --base main` | 顺序执行下面全部检查，首个失败即停止 |
+| `make check` | 顺序执行仓库检查和全部应用检查，各阶段一次，首个失败即停止 |
+| `npm run check -- --base main` | 仅执行规格、文件、提交、安全检查及工具测试，首个失败即停止 |
 | `npm run check:specs` | OpenSpec 严格校验 |
 | `npm run check:repo -- --base main` | 本地文档链接、图片、锚点、冲突标记和 diff 空白错误 |
 | `npm run check:commits -- --base main --head HEAD` | 变更提交的格式及规约引用 |
 | `npm run test:checks` | 文件与提交检查的行为测试 |
 | `npm run check:security` | Git 历史与当前文件的密钥扫描、全部依赖审计 |
 | `npm run test:security` | 安全检查的行为测试，需要 Gitleaks |
+| `npm run lint`、`npm run typecheck` | 应用静态与类型检查 |
+| `npm test` | 业务规则与集成测试 |
+| `npm run test:api` | 实际 HTTP、任务恢复及安全检查 |
+| `npm run build` | 服务端编译 |
 
 直接依赖固定版本，间接依赖由 `package-lock.json` 锁定。OpenSpec（MIT）负责规格校验，markdown-it（MIT）解析 Markdown，github-slugger（ISC）生成 GitHub 标题锚点。Gitleaks（MIT）作为独立 CLI 使用。
+
+模型调用记录按[SEC-07](security-checks.md#sec-07-调用记录可追溯)检查，完整输出保存在 `.local/verification/`。
 
 ## 文件检查
 
@@ -62,7 +69,7 @@ Gitleaks 扫描本地所有可达 Git 引用的历史，以及当前已跟踪和
 构建产物或运行日志需要检查时，显式传入路径：
 
 ```sh
-npm run check:security -- dist .local/runtime.log
+node scripts/checks/check-security.mjs dist .local/runtime.log
 ```
 
 额外路径不存在时失败。该命令随后执行 `npm audit --audit-level=high`，包含开发依赖；高危及严重漏洞返回非零，其他等级按实际审计结果显示。扫描工具或审计服务不可用时报告失败，不跳过检查。
@@ -77,5 +84,8 @@ npm run check:security -- dist .local/runtime.log
 
 - `Repository checks`：安装依赖，执行规格、文件、提交引用检查及对应测试。
 - `Security checks`：安装依赖与校验过的 Gitleaks，执行密钥扫描、依赖审计及对应测试。
+- `Application checks`：启动隔离 PostgreSQL 与 Redis，运行应用类型、静态、行为及接口检查，使用本地 HTTP 模型替身。
 
-文件与规格检查使用 GitHub 默认检出的合并结果。提交检查显式读取事件中的 base、head SHA，排除平台生成的合并提交。两个任务的状态和日志保留在 Actions 中；失败步骤显示原因，修正后更新 PR 即可重新检查。
+Makefile 编排完整检查，`scripts/checks/check.mjs` 保留仓库检查清单。`make check-security`、`make test` 分别调用对应单项 npm 命令；`make backup` 调用 Docker Compose 备份命令。应用检查环境见 [运行说明](runtime.md)，结果见[检查报告](../reports/README.md)。 正式报告保留关键输出；完整运行记录写入 `.local/verification/`，不进入 Git。
+
+文件与规格检查使用 GitHub 默认检出的合并结果。提交检查显式读取事件中的 base、head SHA，排除平台生成的合并提交。各任务的状态和日志保留在 Actions 中；失败步骤显示原因，修正后更新 PR 即可重新检查。

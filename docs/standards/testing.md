@@ -8,11 +8,11 @@
 
 外部模型、信源、工具和时钟采用可控制的替身，自动化测试不消耗真实模型服务。真实模型的回答质量、引用与技能效果使用明确样本单独核验，保留输入、可见结果和必要来源。
 
-模型相关检查可使用 [AI 评测样例](../evaluation/ai-cases.md)，按输入和预期核对实际结果；权限与数据变化仍通过对应业务检查验证。
+模型相关检查可使用 [AI 评测样例](../verification/ai-cases.md)，按输入和预期核对实际结果；权限与数据变化仍通过对应业务检查验证。
 
 ## 命令与通过判定
 
-实现时提供 `npm test`、`npm run test:api`、`npm run test:e2e`；README 说明配置、启动依赖、报告位置和一键运行方式。格式、类型及构建检查使用 `npm run lint`、`npm run typecheck`、`npm run build`。
+已提供 `npm test`、`npm run test:api`；浏览器用例与 `npm run test:e2e` 随界面实现建立。README 说明配置、启动依赖、报告位置和一键运行方式。格式、类型及构建检查使用 `npm run lint`、`npm run typecheck`、`npm run build`。
 
 用例失败必须非零退出并阻断合入。跳过的用例说明理由和未覆盖范围，未执行不得报告通过。生成型测试报告、临时取证和敏感原始日志不提交 Git。交付时说明实际检查与结果；任务要求的评审表和运行报告脱敏后按指定位置保存。
 
@@ -47,4 +47,4 @@
 
 交付时可按[评审检查表](review.md#检查表)核对适用内容。
 
-安全与异步高风险场景按[安全检查方法](../security-checks.md)准备身份、数据和断言。报告注明检查版本、执行方式和实际输出，详细证据按日期和主题归组，入口见[报告索引](../../reports/README.md)。
+安全与异步高风险场景按[安全检查方法](../verification/security.md)准备身份、数据和断言。报告注明检查版本、执行方式和实际输出，正文保留关键输出，完整 JSON 与日志保存于 Git 忽略的 `.local/verification/`，入口见[报告索引](../../reports/README.md)。
