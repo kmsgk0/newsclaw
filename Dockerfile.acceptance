@@ -1,0 +1,24 @@
+FROM node:24-bookworm-slim
+ARG TARGETARCH
+ENV CI=true OPENSPEC_TELEMETRY=0 GIT_OPTIONAL_LOCKS=0 PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
+RUN apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN set -eu; \
+    case "$TARGETARCH" in arm64) architecture=arm64 ;; amd64) architecture=x64 ;; *) echo 'Unsupported acceptance architecture' >&2; exit 1 ;; esac; \
+    archive="gitleaks_8.30.1_linux_${architecture}.tar.gz"; \
+    release='https://github.com/gitleaks/gitleaks/releases/download/v8.30.1'; \
+    cd /tmp; \
+    curl --fail --location --silent --show-error "$release/$archive" -o "$archive"; \
+    curl --fail --location --silent --show-error "$release/gitleaks_8.30.1_checksums.txt" -o checksums.txt; \
+    awk -v file="$archive" '$2 == file { print }' checksums.txt > selected.sha256; \
+    test -s selected.sha256; sha256sum --check selected.sha256; \
+    tar -xzf "$archive" -C /usr/local/bin gitleaks; \
+    rm "$archive" checksums.txt selected.sha256
+WORKDIR /tools
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
+RUN npx playwright install chromium --only-shell --with-deps && rm -rf /var/lib/apt/lists/*
+RUN git config --global --add safe.directory '*'
+COPY scripts/checks ./scripts/checks
+ENV PATH="/tools/node_modules/.bin:${PATH}"
+WORKDIR /work
+CMD ["node", "/tools/scripts/checks/prepare-workspace.mjs"]

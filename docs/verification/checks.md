@@ -1,44 +1,73 @@
-# 仓库检查
+# 检查与自动验收
 
-`npm run check` 覆盖 OpenSpec、仓库文档、提交的规约引用、安全及工具测试，不依赖业务服务或模型调用。`make check` 先运行这一仓库检查，再执行应用静态、类型、行为、接口、构建及浏览器检查；数据库、Redis 与测试浏览器需按运行说明准备。本地与 GitHub Actions 复用同一套单项 npm 命令，需求依据见[开发流程规格](../../openspec/specs/contribution-workflow/spec.md)。
+完整验收使用 Docker Compose 和系统 shell。验收镜像提供 Node、Git、Gitleaks 和 Chromium，自动准备专用 PostgreSQL、Redis 及测试配置，执行现有检查并生成报告。应用的日常启动见[运行说明](../runtime.md)。
 
-## 准备与运行
+## 一键验收
 
-需要 Node.js 24 或以上版本、npm、Git 和 Gitleaks 8.30.1；CI 使用 Node.js 24。安装锁文件中的依赖后运行：
+在仓库根目录执行：
+
+```sh
+sh scripts/acceptance.sh
+```
+
+首次运行构建工具镜像并下载依赖，后续复用镜像缓存。普通 checkout 和 Git worktree 使用相同入口，未提交的公开文件也参与检查；本地 `.env`、缓存与历史验收材料不进入运行副本。测试使用 HTTP 信源和模型替身，无需配置真实模型凭据。
+
+入口为本轮创建独立 Compose 项目，不映射服务端口到宿主。结束或中断后清理本轮容器和数据卷，保留报告；已有应用服务和数据库保持运行。失败返回非零，后续阶段标记未执行。终端显示当前阶段和报告位置。
+
+每轮产物保存于 `.local/verification/acceptance/<运行标识>/`：
+
+| 文件 | 用途 |
+| --- | --- |
+| `index.html` | 可直接打开的 NewsClaw 验收汇总，含阶段、业务用例、需求编号和异步数据 |
+| `report.json` | 本轮版本、状态、命令、耗时与实际用例结果 |
+| `logs/`、`infrastructure.log` | 检查阶段及构建、启动、清理的完整日志 |
+| `browser/`、`browser-results/` | Playwright 详细报告、截图与失败轨迹 |
+| `review.md` | 执行时的正式代码审查记录，保留已登记问题 |
+| `usage-recording.json` | SEC-07 正常与结构失败调用的预期用量、日志用量和消息用量 |
+
+报告按账号、新闻、个人编辑、技能、专题、运行及工程检查整理用例。搜索支持需求编号、名称和文件；浏览器的不同视口保留各自执行结果。自动结果针对本轮检查，已登记问题仍见[代码审查](code-review.md)。生成材料全部由 Git 忽略，命令不改写 `reports/` 的正式报告。
+
+提交检查默认以 `main` 和 `HEAD` 为范围，其他基线可以显式传入：
+
+```sh
+sh scripts/acceptance.sh --base main --head HEAD
+```
+
+已有 Make 的开发环境也可以使用 `make acceptance`，与 shell 入口相同。
+
+## 开发检查
+
+开发环境可直接运行单项命令。需要 Node.js 24 或更新版本、npm、Git 和 Gitleaks 8.30.1；应用检查另需 PostgreSQL、Redis、测试配置和 Chromium。安装及本地服务说明见[运行说明](../runtime.md)。
 
 ```sh
 npm ci --ignore-scripts --no-audit --no-fund
+npx playwright install chromium --only-shell
 npm run check -- --base main
 ```
 
-Gitleaks 使用 PATH 中的同名程序，也可以通过环境变量指定已安装的二进制：
-
-```sh
-export GITLEAKS_BIN="$PWD/.local/tools/gitleaks"
-npm run check -- --base main
-```
-
-从 [Gitleaks 8.30.1 发布页](https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1)下载对应平台的压缩包与 checksums 文件，核对 SHA-256 后解压到 PATH 或 `.local/tools/`。macOS Apple Silicon 对应 `darwin_arm64`，CI 使用 `linux_x64`。版本不符或工具缺失时检查会明确失败。
+Gitleaks 使用 PATH 中的同名程序，也支持 `GITLEAKS_BIN`。从 [Gitleaks 8.30.1 发布页](https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1)下载对应平台压缩包与 checksums 文件，核对 SHA-256 后解压。macOS Apple Silicon 使用 `darwin_arm64`，Linux 使用对应架构；版本不符或工具缺失明确失败。
 
 | 命令 | 内容 |
 | --- | --- |
-| `make check` | 顺序执行仓库检查和全部应用检查，各阶段一次，首个失败即停止 |
-| `npm run check -- --base main` | 仅执行规格、文件、提交、安全检查及工具测试，首个失败即停止 |
+| `make check` | 执行完整阶段清单，每阶段一次，首个失败即停止 |
+| `npm run check -- --base main` | 仅执行仓库、安全与工具检查 |
 | `npm run check:specs` | OpenSpec 严格校验 |
-| `npm run check:repo -- --base main` | 本地文档链接、图片、锚点、冲突标记和 diff 空白错误 |
-| `npm run check:commits -- --base main --head HEAD` | 变更提交的格式及规约引用 |
-| `npm run test:checks` | 文件与提交检查的行为测试 |
-| `npm run check:security` | Git 历史与当前文件的密钥扫描、全部依赖审计 |
-| `npm run test:security` | 安全检查的行为测试，需要 Gitleaks |
+| `npm run check:repo -- --base main` | 文档链接、图片、锚点、冲突标记和 diff 空白错误 |
+| `npm run check:commits -- --base main --head HEAD` | 提交格式与规约引用 |
+| `npm run test:checks` | 仓库检查、编排、容器入口和报告工具用例 |
+| `npm run check:security`、`make check-security` | 密钥扫描与全部依赖审计 |
+| `npm run test:security` | 安全工具用例 |
 | `npm run lint`、`npm run typecheck` | 应用静态与类型检查 |
-| `npm test` | 业务规则与集成测试 |
-| `npm run test:api` | 实际 HTTP、任务恢复及安全检查 |
+| `npm test`、`npm run test:api` | 业务规则与集成测试、实际 HTTP 和队列进程检查 |
 | `npm run build` | 服务端与前端构建 |
-| `npm run test:e2e` | 使用隔离应用运行浏览器检查 |
+| `npm run test:e2e` | 桌面、平板和手机浏览器流程 |
+| `node scripts/checks/check.mjs --stage usage` | SEC-07 正常与结构失败调用的用量保存检查 |
 
-直接依赖固定版本，间接依赖由 `package-lock.json` 锁定。OpenSpec（MIT）负责规格校验，markdown-it（MIT）解析 Markdown，github-slugger（ISC）生成 GitHub 标题锚点。Gitleaks（MIT）作为独立 CLI 使用。
+`scripts/checks/stages.mjs` 是唯一检查清单，npm、Make、容器及 CI 调用 `scripts/checks/check.mjs`。单项命令选择同一阶段，不重复维护断言和执行顺序。Node 使用测试事件采集结果，Playwright 输出 JSON 与原生 HTML；阶段日志保留原始诊断。
 
-模型调用记录可按需运行 `node --import tsx tests/evaluation/usage-recording.ts`，使用隔离数据库和 HTTP 替身，对照正常与结构失败时的用量。判据及当前结果见[SEC-07](../../reports/security-precheck.md#sec-07-失败调用用量)，完整输出保存在 `.local/verification/`。
+SEC-07 用量检查默认包含在 Docker 验收、`make check` 和 CI 的 application 组中，也可通过上表的 usage 阶段单独执行。复用 `tests/evaluation/usage-recording.ts` 和本地 HTTP 模型替身，分别检查正常与结构失败时的用量，不调用真实模型。成功与结构失败场景都应保存模型已提供的用量，任一不符合判据时阶段及整轮验收失败，退出码为 1；报告显示两个场景的实际结果，附件保留本轮 `usage-recording.json`。首次现象及后续处理见[修复记录](../../reports/security-fix-log.md)。OpenAPI 定义与页面分别由 API 和浏览器阶段检查。
+
+单项执行需要保存报告时设置 `VERIFICATION_DIR`；直接运行 `node --import tsx tests/evaluation/usage-recording.ts` 也保留原入口，未设置 `VERIFICATION_DIR` 时使用 `EVALUATION_DIR` 或 `.local/verification/`。真实模型评测单独启用，方法见[AI 样例](ai-cases.md)。
 
 ## 文件检查
 
@@ -81,12 +110,6 @@ node scripts/checks/check-security.mjs dist .local/runtime.log
 
 ## GitHub Actions
 
-[PR workflow](../../.github/workflows/pr-checks.yml)在面向 `main` 的 PR 创建、提交更新和重新打开时运行，仅申请 `contents: read` 权限。
+[PR workflow](../../.github/workflows/pr-checks.yml)在面向 main 的 PR 创建、更新和重新打开时运行，只申请 `contents: read`。三个任务分别调用同一清单中的 repository、security 和 application 组。应用任务使用隔离 PostgreSQL、Redis 和 HTTP 模型替身。
 
-- `Repository checks`：安装依赖，执行规格、文件、提交引用检查及对应测试。
-- `Security checks`：安装依赖与校验过的 Gitleaks，执行密钥扫描、依赖审计及对应测试。
-- `Application checks`：启动隔离 PostgreSQL 与 Redis，运行应用类型、静态、行为、接口和浏览器检查，使用本地 HTTP 模型替身。
-
-Makefile 编排完整检查，`scripts/checks/check.mjs` 保留仓库检查清单。`make check-security`、`make test` 分别调用对应单项 npm 命令；`make backup` 调用 Docker Compose 备份命令。应用检查环境见 [运行说明](../runtime.md)，结果见[检查报告](../../reports/README.md)。 正式报告保留关键输出；完整运行记录写入 `.local/verification/`，不进入 Git。
-
-文件与规格检查使用 GitHub 默认检出的合并结果。提交检查显式读取事件中的 base、head SHA，排除平台生成的合并提交。各任务的状态和日志保留在 Actions 中；失败步骤显示原因，修正后更新 PR 即可重新检查。
+文件与规格检查使用合并结果。提交检查显式使用事件中的 base、head SHA，仅核对开发者提交。各组结果分别显示，失败返回非零；完整本地验收使用相同阶段实现。正式记录见[报告索引](../../reports/README.md)。

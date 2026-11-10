@@ -1,20 +1,16 @@
-.PHONY: check check-security test backup
+.PHONY: check check-security test acceptance backup
 
 check:
-	npm run check -- --base main
-	npm run lint
-	npm run typecheck
-	npm test
-	npm run test:api
-	npm run build
-	npm run test:e2e
+	node scripts/checks/check.mjs --group all
 
 check-security:
 	npm run check:security
 
 test:
-	npm test
-	npm run test:api
+	node scripts/checks/check.mjs --stage unit,api
+
+acceptance:
+	sh scripts/acceptance.sh
 
 backup:
 	docker compose exec -T backup sh /scripts/backup.sh

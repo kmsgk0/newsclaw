@@ -8,7 +8,25 @@ import { readingMaterials, selectLabeledSources, sourceLabelsSchema } from '../n
 import { EditorRepository, type Activity, type EditorProfile, type Memory } from './repository.js';
 import { citationsFor, validateCitations } from './service.js';
 
-const dailySchema = z.object({ content: z.string().min(1), sourceLabels: sourceLabelsSchema.min(1) }).strict();
+export const personalDigestSchema = z.object({
+  content: z.string().min(1), sourceLabels: sourceLabelsSchema.min(1),
+  interestMatches: z.array(z.object({ sourceLabel: z.string(), preference: z.string().trim().min(1), quote: z.string().trim().min(1) }).strict()).default([]),
+}).strict();
+export const personalDigestInstructions = '按用户明确兴趣和相关记忆选择当日材料，用编辑风格写中文新闻导读。content 仅整理报道事实，不包含兴趣分析、建议或关注理由段落。准确保留消息来源、条件和不确定性，考虑、可能或条件性的事项不能写成已决定或已发生；只使用材料已披露的计划、日期、用途及效果，不从人事、职责或行业常识补写技术路线和确定因果。直接从具体新闻开始，保留必要背景，使用自然段及必要的小标题，事实用 [N1] 形式引用。sourceLabels 只填写实际选中材料的编号。兴趣关联仅通过 interestMatches 提供：sourceLabel 为已选材料编号，preference 逐字摘取 profile.interests 或 memories 中实际偏好的短语，quote 逐字摘取相应材料 content 中能体现关联的原文片段，不改写原文、不把推断放进 quote。关联说明由宿主生成。没有偏好或找不到直接原文依据时，interestMatches 返回空数组。';
+
+export function renderPersonalDigest(value: z.infer<typeof personalDigestSchema>, preferences: string[], materials: { label: string; content: string }[]) {
+  const normalize = (text: string) => text.replace(/\s+/g, ' ').trim();
+  const literal = (text: string) => text.replace(/[\\`*_{}[\]<>]/g, '\\$&');
+  const matches = value.interestMatches.map(match => {
+    const material = materials.find(item => item.label === match.sourceLabel && value.sourceLabels.includes(item.label));
+    if (!material || !normalize(material.content).includes(normalize(match.quote))
+      || !preferences.some(preference => normalize(preference).includes(normalize(match.preference)))) {
+      throw unavailable('日报兴趣关联缺少可核对依据');
+    }
+    return `- 关注“${literal(match.preference)}”：报道提到“${literal(normalize(match.quote))}” [${match.sourceLabel}]。`;
+  });
+  return value.content + (matches.length ? `\n\n### 关注关联\n\n${matches.join('\n')}` : '');
+}
 const journalSchema = z.object({ content: z.string().min(1), sourceLabels: sourceLabelsSchema, memories: z.array(z.object({ key: z.string().trim().min(1).max(100), content: z.string().trim().min(1).max(2000) }).strict()) }).strict();
 interface DailySnapshot { profile: EditorProfile; memories: Memory[]; news: NewsItem[] }
 interface JournalSnapshot { profile: EditorProfile; activities: Activity[]; news: NewsItem[]; questions: unknown[]; end: string }
@@ -50,15 +68,16 @@ export function createEditorHandlers(ctx: AppContext): { daily: TaskHandler; jou
     if (!news.length) return { commit: async () => ({ date, status: 'empty', message: '当日暂无可用新闻' }) };
     const candidates = citationsFor(news);
     const result = await ctx.model.json('personal-digest', {
-      instructions: '按用户明确兴趣和相关记忆选择当日材料，使用编辑风格写中文导读，说明新闻与兴趣的关系。直接从具体新闻开始，不加问候或称呼。兴趣为空时采用当日精选，并提示可以补充兴趣。保留必要背景，所有新闻事实用提供的 [N1] 形式引用，sourceLabels 只填写实际选中材料的编号，例如 N1。',
+      instructions: personalDigestInstructions,
       date, profile: { editorName:profile.name,style:profile.style,interests:profile.interests }, memories, materials: readingMaterials(news),
-    }, dailySchema, run.signal);
+    }, personalDigestSchema, run.signal);
     const sources = selectLabeledSources(candidates,result.value.sourceLabels);
     if (!sources.length) throw unavailable('日报缺少可核对来源');
     validateCitations(result.value.content, sources);
+    const rendered = renderPersonalDigest(result.value, [profile.interests, ...memories.map(memory => memory.content)], readingMaterials(news));
     const content = !profile.interests && !memories.length
-      ? `本期采用当日精选。你可以在编辑设置中补充兴趣，获得更贴合关注方向的导读。\n\n${result.value.content}`
-      : result.value.content;
+      ? `本期采用当日精选。你可以在编辑设置中补充兴趣，获得更贴合关注方向的导读。\n\n${rendered}`
+      : rendered;
     ctx.logger.info({ module: 'editor', taskId: task.id, actorId: userId, operation: 'personal-digest', result: 'generated', usage: result.usage }, 'editor.digest');
     return { commit: async tx => {
       const saved = await new EditorRepository(tx).saveDigest(userId, date, content, sources, task.created_at, task.id);

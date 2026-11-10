@@ -40,10 +40,10 @@ NewsClaw 是个性化 AI 新闻阅读平台。资讯中心提供共同内容，�
 - `src/server/` 的入口负责装配和启停，业务放在 `modules/`，任务运行能力放在 `runtime/`，模型、信源和 MCP 放在 `adapters/`。
 - `src/web/` 按页面、布局与共享组件组织；共同样式和业务样式有明确位置，保持已确认的阅读与操作效果。
 - `tests/` 的业务用例按对象分组，辅助环境放在 `support/`，浏览器用例放在 `e2e/`，真实模型评测放在 `evaluation/`。`apitest/` 保留真实 HTTP 与队列进程场景。
-- `scripts/checks/` 保存仓库检查及其用例，`scripts/operations/` 保存备份恢复工具。npm 是单项命令入口，Make 编排完整检查，CI 复用相同命令。
+- `scripts/checks/` 保存仓库检查及其用例，`scripts/operations/` 保存备份恢复工具。`stages.mjs` 维护唯一检查清单，npm、Make、容器验收和 CI 复用同一运行入口。
 - `docs/` 的说明从文档导航进入，八类规范保存实现约定，`reports/` 保存正式结果，完整运行输出放在被忽略的 `.local/verification/`。
 
-项目依赖固定 OpenSpec 1.14.3。使用 `npx openspec list` 查看变更，`npm run check:specs` 校验规格，交付前运行 `npm run check -- --base main`。涉及应用行为时执行对应测试，完整入口为 `make check`；环境及命令见[检查说明](docs/verification/checks.md)。
+项目依赖固定 OpenSpec 1.14.3。使用 `npx openspec list` 查看变更，`npm run check:specs` 校验规格，交付前运行 `npm run check -- --base main`。涉及应用行为时执行对应测试，完整验收入口为 `sh scripts/acceptance.sh`，开发环境可用 `make check`；环境及命令见[检查说明](docs/verification/checks.md)。
 
 OpenSpec 工作流技能位于 `.agents/skills/openspec-*/`。补测试使用 [newsclaw-test](.agents/skills/newsclaw-test/SKILL.md)，发布与恢复使用 [newsclaw-release](.agents/skills/newsclaw-release/SKILL.md)。代码审查按[七类核查](docs/standards/review.md#七类核查)进行；权限、并发、事务和一致性保留实际依据。
 

@@ -12,7 +12,7 @@ NewsClaw 将公共新闻、个人编辑和持续跟进放在同一个阅读空�
 | 账号、新闻、编辑与技能、专题的接口和实现 | [账号](modules/account.md)、[新闻](modules/news.md)、[编辑与技能](modules/editor.md)、[专题](modules/topics.md) |
 | 依赖的用途与许可 | [依赖说明](dependencies.md) |
 | 开发、Spec、提交与归档 | [开发指南](../CONTRIBUTING.md)、[项目规则](../AGENTS.md) |
-| 自动检查、安全检查及 AI 样例 | [检查入口](verification/checks.md)、[安全检查方法](verification/security.md)、[AI 评测样例](verification/ai-cases.md) |
+| Docker 验收、单项检查及 AI 样例 | [检查入口](verification/checks.md)、[安全检查方法](verification/security.md)、[AI 评测样例](verification/ai-cases.md) |
 | 实际检查结果与待修改项 | [正式报告](../reports/README.md)、[代码审查](verification/code-review.md)、[AI 评测结果](verification/ai-results.md) |
 
 ## 能力与场景索引
@@ -26,7 +26,7 @@ NewsClaw 将公共新闻、个人编辑和持续跟进放在同一个阅读空�
 | 个人编辑 | EDITOR-01 至 EDITOR-06 | [编辑规格](../openspec/specs/personal-editor/spec.md) |
 | 阅读技能 | SKILL-01 至 SKILL-04 | [技能规格](../openspec/specs/editor-skills/spec.md) |
 | 专题与洞察 | TOPIC-01 至 TOPIC-06 | [专题规格](../openspec/specs/topics-and-insights/spec.md) |
-| 运行与恢复 | OPS-01 至 OPS-05 | [运行规格](../openspec/specs/runtime-operations/spec.md) |
+| 运行与恢复 | OPS-01 至 OPS-06 | [运行规格](../openspec/specs/runtime-operations/spec.md) |
 | 阅读界面 | UI-01 至 UI-04 | [界面规格](../openspec/specs/reading-interface/spec.md) |
 
 ## 工程规范
@@ -45,3 +45,5 @@ NewsClaw 将公共新闻、个人编辑和持续跟进放在同一个阅读空�
 | 阅读技能 | 编辑与材料 | [阅读技能](../openspec/changes/archive/2026-11-09-reading-skills/proposal.md)、[任务](../openspec/changes/archive/2026-11-09-reading-skills/tasks.md) |
 | 专题与持续跟进 | 新闻、编辑与技能 | [专题与洞察](../openspec/changes/archive/2026-11-09-topics-and-insights/proposal.md)、[任务](../openspec/changes/archive/2026-11-09-topics-and-insights/tasks.md) |
 | 阅读界面 | 所有业务接口 | [阅读界面](../openspec/changes/archive/2026-11-09-reading-interface/proposal.md)、[任务](../openspec/changes/archive/2026-11-09-reading-interface/tasks.md) |
+| 自动验收与报告 | 应用及已有检查 | [自动验收](../openspec/changes/archive/2026-11-09-automated-acceptance/proposal.md)、[任务](../openspec/changes/archive/2026-11-09-automated-acceptance/tasks.md) |
+| 应用问题修复 | 首次检查及自动验收 | [用量、文档与日报](../openspec/changes/archive/2026-11-10-application-corrections/proposal.md)、[任务](../openspec/changes/archive/2026-11-10-application-corrections/tasks.md) |

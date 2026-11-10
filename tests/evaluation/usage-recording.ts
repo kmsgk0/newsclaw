@@ -1,4 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import test from 'node:test';
 import pino from 'pino';
 import { editorEnvironment } from '../support/editor-fixture.js';
 import { EditorService } from '../../src/server/modules/editor/service.js';
@@ -48,11 +50,20 @@ try {
   }
 
   const record = { recordedAt: new Date().toISOString(), results };
-  const directory = process.env.EVALUATION_DIR ?? '.local/verification';
+  const directory = process.env.VERIFICATION_DIR ?? process.env.EVALUATION_DIR ?? '.local/verification';
   await mkdir(directory, { recursive: true });
   await writeFile(`${directory}/usage-recording.json`, JSON.stringify(record, null, 2) + '\n');
   console.log(JSON.stringify(record, null, 2));
-  process.exitCode = results.every(result => result.passed) ? 0 : 1;
+  for (const result of results) {
+    await test(`SEC-07 ${result.mode === 'valid' ? '成功回答保存模型用量' : '结构校验失败时保留模型用量'}`, () => {
+      assert.equal(result.answerStatus, result.expectedStatus);
+      assert.equal(result.loggedActorId, result.actorId);
+      assert.equal(result.loggedSkillId, result.skillId);
+      assert.equal(typeof result.durationMs, 'number');
+      assert.deepEqual(result.loggedUsage, expectedUsage, '调用日志应保留模型已返回的用量');
+      assert.deepEqual(result.storedUsage, expectedUsage, '消息应保留模型已返回的用量');
+    });
+  }
 } finally {
   await env.cleanup();
 }

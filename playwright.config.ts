@@ -1,4 +1,7 @@
 import { defineConfig } from '@playwright/test';
+import path from 'node:path';
+
+const reports = process.env.VERIFICATION_DIR;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -6,7 +9,10 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   fullyParallel: false,
   workers: 1,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  outputDir: reports ? path.join(reports, 'browser-results') : 'test-results',
+  reporter: reports
+    ? [['list'], ['json', { outputFile: path.join(reports, 'browser.json') }], ['html', { open: 'never', outputFolder: path.join(reports, 'browser') }]]
+    : [['list'], ['html', { open: 'never' }]],
   use: { baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3101', trace: 'retain-on-failure', screenshot: 'only-on-failure' },
   projects: [
     { name: 'desktop', use: { viewport: { width: 1440, height: 900 } } },
