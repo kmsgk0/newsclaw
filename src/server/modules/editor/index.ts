@@ -30,7 +30,7 @@ export async function registerEditor(app: FastifyInstance, ctx: AppContext) {
   app.post<{ Params: { id: string } }>('/api/v1/conversations/:id/messages', { schema: { tags: ['Editor'], summary: '发送问题，流式返回回答与来源', params, body: jsonSchema(send) } }, async (request, reply) => {
     const prepared = await service.prepare(request.actor!, request.params.id, send.parse(request.body));
     const controller = new AbortController();
-    reply.hijack(); reply.raw.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache, no-transform', connection: 'keep-alive', 'x-accel-buffering': 'no' });
+    reply.hijack(); reply.raw.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache, no-transform', connection: 'keep-alive', 'x-accel-buffering': 'no', 'x-request-id': request.id });
     const emit = (event: string, data: unknown) => { if (!reply.raw.destroyed && !reply.raw.writableEnded) reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); };
     const abort = () => { if (!reply.raw.writableEnded) controller.abort(); };
     reply.raw.on('close', abort);

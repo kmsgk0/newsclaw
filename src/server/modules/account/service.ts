@@ -83,6 +83,11 @@ export class AuthService {
     });
   }
 
+  async refreshSessionId(token: string) {
+    if (!token) return null;
+    return (await this.repository.refreshSessionId(tokenHash(token)))?.id ?? null;
+  }
+
   async authenticate(token: string): Promise<{ actor: Actor; sessionId: string } | null> {
     if (!token) return null;
     const row = await this.repository.accessSession(tokenHash(token));

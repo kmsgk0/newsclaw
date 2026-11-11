@@ -34,11 +34,21 @@ API 启动前自动迁移并初始化公共信源；已有来源配置保持不�
 | `APP_ORIGIN`、`COOKIE_SECURE` | 网页来源及安全 Cookie，默认 localhost:3100 和 true |
 | `MODEL_TIMEOUT_MS` | 单次模型请求超时，默认 120000 毫秒 |
 | `TASK_ATTEMPTS`、`TASK_BACKOFF_MS` | 一轮最多三次业务尝试，指数退避从 2000 毫秒起并带抖动 |
+| `DB_POOL_MAX` | 每个应用进程的数据库连接池上限，默认 12，可设为 1–100；多进程时按各进程之和规划数据库连接容量 |
 | `QUEUE_PREFIX` | 队列命名空间，测试使用独立值 |
 | `APP_VERSION` | 响应及运行日志中的版本标识 |
 | `SCHEDULE_ENABLED` | Worker 默认启用定时任务，设为 false 可运行仅处理主动提交的消费者 |
+| `METRICS_ENABLED`、`METRICS_HOST`、`METRICS_PORT` | 指标服务默认关闭，独立运行时默认绑定 `127.0.0.1:9095` |
 
 缺少必需配置时应用明确退出，只报告配置项名称。`/live` 检查进程，`/health` 返回版本、时间及数据库、队列就绪状态；健康检查不调用付费生成。
+
+## 监控
+
+需要监控时，在本地 `.env` 中设置 `METRICS_ENABLED=true` 和非空的 `GRAFANA_ADMIN_PASSWORD`，再执行 `docker compose --profile observability up -d --build`。Grafana 默认仅监听本机 `http://127.0.0.1:3300`，使用 `admin` 和所设密码登录；可用 `GRAFANA_PORT` 修改宿主端口。Compose 内的指标端口只供容器网络访问，不映射到宿主机。请限制该网络的访问权限，不要提交密码。
+
+面板展示最近五分钟的技能调用、失败比例、接口 P95 和等待队列深度；Prometheus 对持续一分钟的队列积压、技能失败和队列不可用生成告警。Alertmanager 将通知发给仅在容器网络内的接收器，可通过 `docker compose --profile observability logs alert-recorder` 查看告警名、状态与接收时间。默认没有邮件、即时消息或其他外部通知渠道，部署者如需外部通知应按实际环境配置。指标不包含用户、新闻或请求标识，API 进程重启后内存计数会重置。队列读取失败时单独标记不可用，不计为零积压。
+
+停止监控容器可执行 `docker compose --profile observability stop prometheus grafana alertmanager alert-recorder`；如需清除历史数据，应先确认后再删除对应卷。
 
 ## 接收、执行与恢复
 

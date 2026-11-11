@@ -77,11 +77,18 @@ export class EditorRepository {
       return answer!.id;
     });
   }
-  async finish(userId: string, conversationId: string, messageId: string, result: { content: string; status: 'completed' | 'failed'; sources: Citation[]; artifact?: Artifact | null; usage?: ModelUsage; error?: MessageFailure }) {
+  async finish(userId: string, conversationId: string, messageId: string, result: { content: string; status: 'completed' | 'failed'; sources: Citation[]; artifact?: Artifact | null; usage?: ModelUsage; error?: MessageFailure; audit?: { skillId: string; requestId?: string; durationMs: number } }) {
     return this.db.tx(async tx => {
       if (!await tx.one(`SELECT id FROM conversations WHERE id=$1 AND user_id=$2`, [conversationId, userId])) throw notFound();
       const saved = await tx.one(`UPDATE messages SET content=$3,status=$4,sources=$5,artifact=$6,usage=$7,error=$8,finished_at=now() WHERE id=$1 AND conversation_id=$2 AND status='pending' RETURNING id`, [messageId, conversationId, result.content, result.status, JSON.stringify(result.sources), result.artifact ? JSON.stringify(result.artifact) : null, result.usage ? JSON.stringify(result.usage) : null, result.status === 'failed' && result.error ? JSON.stringify(result.error) : null]);
       if (!saved) throw new AppError(409,'CONFLICT','回答状态已改变，请重新打开会话');
+      if (result.audit) {
+        const count=(value:number|null|undefined)=>Number.isSafeInteger(value)&&value!>=0&&value!<=2147483647?value:null;
+        const requestId=result.audit.requestId && /^[a-zA-Z0-9_-]{1,128}$/.test(result.audit.requestId) ? result.audit.requestId : null;
+        const errorCode=result.error?.code && /^[A-Z0-9_]{1,80}$/.test(result.error.code) ? result.error.code : null;
+        const duration=Math.min(2147483647,Math.max(0,Math.floor(result.audit.durationMs)));
+        await tx.query(`INSERT INTO skill_audit(request_id,actor_id,object_id,message_id,skill_id,result,error_code,input_tokens,output_tokens,total_tokens,duration_ms) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,[requestId,userId,conversationId,messageId,result.audit.skillId,result.status==='completed'?'succeeded':'failed',errorCode,count(result.usage?.inputTokens),count(result.usage?.outputTokens),count(result.usage?.totalTokens),duration]);
+      }
       if (result.status === 'completed') await tx.query(`INSERT INTO activities(user_id,kind,conversation_id,data) VALUES($1,'question',$2,$3)`, [userId, conversationId, JSON.stringify({ messageId, sourceIds: result.sources.map(source => source.id) })]);
     });
   }

@@ -146,7 +146,7 @@ export function ChatPanel({
     followScroll.current = true;
   }, [conversationId, contextKind, contextId]);
   useEffect(() => {
-    if (conversation.data?.messages && !controller.current)
+    if (conversation.data?.id === activeIdRef.current && conversation.data?.messages && !controller.current)
       setMessages(conversation.data.messages);
   }, [conversation.data]);
   useEffect(

@@ -55,3 +55,19 @@ test('EDITOR-03 disconnected browser stream persists an incomplete answer', asyn
     assert.equal(status,'failed');
   } finally {await app.close();await env.cleanup();}
 });
+
+test('SEC-14 invalid model output is not delivered over HTTP or stored in the conversation', async () => {
+  const env=await editorEnvironment();const app=await createApp(env.ctx);
+  try {
+    const login=await new AuthService(env.ctx.db).login({username:env.a.username,password:'correct-password'});
+    const headers={authorization:`Bearer ${login.accessToken}`};
+    const conversation=(await app.inject({method:'POST',url:'/api/v1/conversations',headers,payload:{title:'不可信回答',context:{kind:'news',id:env.newsId}}})).json().data;
+    env.state.mode='bad-citation';
+    const response=await app.inject({method:'POST',url:`/api/v1/conversations/${conversation.id}/messages`,headers,payload:{content:'报道内容是什么？'}});
+    assert.match(response.body,/event: error/);
+    assert.doesNotMatch(response.body,/价格为99元|N999|event: text/);
+    const saved=(await app.inject({url:`/api/v1/conversations/${conversation.id}`,headers})).json().data;
+    assert.equal(saved.messages.at(-1).status,'failed');
+    assert.equal(saved.messages.at(-1).content,'');
+  } finally {await app.close();await env.cleanup();}
+});

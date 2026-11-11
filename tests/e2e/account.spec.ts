@@ -1,6 +1,29 @@
 import { test, expect } from "@playwright/test";
 import { navigate, register, fits } from "./helpers";
 
+test("SEC-12 an expired browser access token refreshes before a protected write", async ({ page }) => {
+  await register(page);
+  let rejected = false;
+  let refreshed = false;
+  page.on("request", (request) => {
+    if (request.url().endsWith("/api/v1/auth/refresh") && request.method() === "POST") refreshed = true;
+  });
+  await page.route("**/api/v1/auth/csrf", async (route) => {
+    if (!rejected && route.request().headers().authorization) {
+      rejected = true;
+      await route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ code: "UNAUTHENTICATED", message: "请重新登录", data: null, requestId: "expired-access-fixture" }) });
+    } else await route.continue();
+  });
+  await page.getByRole("button", { name: "编辑设置", exact: true }).click();
+  await page.getByLabel("编辑名字", { exact: true }).fill("恢复后的编辑");
+  await page.getByRole("button", { name: "保存设置", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("编辑设置已保存");
+  expect(rejected).toBe(true);
+  expect(refreshed).toBe(true);
+  await page.reload();
+  await expect(page.getByLabel("编辑名字", { exact: true })).toHaveValue("恢复后的编辑");
+});
+
 test("ACC-02 EDITOR-01 EDITOR-05 account, profile and memory persist through reload", async ({
   page,
 }, info) => {

@@ -2,7 +2,8 @@ import { loadConfig } from './config.js';
 import { Db } from './db.js';
 import { seedSources } from './modules/news/index.js';
 
-const db=new Db(loadConfig().databaseUrl);
+const config=loadConfig();
+const db=new Db(config.databaseUrl,undefined,config.databasePoolMax);
 try {
   await seedSources(db);
   const username=process.env.ADMIN_USERNAME;

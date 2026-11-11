@@ -3,8 +3,8 @@ import { logger } from './logger.js';
 
 export class Db {
   readonly pool: pg.Pool;
-  constructor(connection: string | pg.Pool, private client?: PoolClient) {
-    this.pool = typeof connection === 'string' ? new pg.Pool({ connectionString: connection, max: 12, connectionTimeoutMillis: 3000 }) : connection;
+  constructor(connection: string | pg.Pool, private client?: PoolClient, maxConnections = 12) {
+    this.pool = typeof connection === 'string' ? new pg.Pool({ connectionString: connection, max: maxConnections, connectionTimeoutMillis: 3000 }) : connection;
     if(typeof connection==='string') this.pool.on('error',()=>logger.warn({module:'database',result:'connection-lost'},'Idle database connection closed'));
   }
   async query<T extends QueryResultRow = QueryResultRow>(sql: string, params: unknown[] = []): Promise<T[]> {

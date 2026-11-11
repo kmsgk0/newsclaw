@@ -4,6 +4,7 @@ import { z } from 'zod';
 const url = z.string().url();
 const schema = z.object({
   DATABASE_URL: url.regex(/^postgres(?:ql)?:/), REDIS_URL: url.regex(/^rediss?:/),
+  DB_POOL_MAX: z.coerce.number().int().min(1).max(100).default(12),
   CHAT_BASE_URL: url, CHAT_API_KEY: z.string().min(1), CHAT_MODEL: z.string().min(1),
   EMBEDDING_BASE_URL: url, EMBEDDING_API_KEY: z.string().min(1), EMBEDDING_MODEL: z.string().min(1),
   EMBEDDING_DIM: z.coerce.number().int().positive().default(1024),
@@ -15,6 +16,8 @@ const schema = z.object({
   TASK_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
   TASK_BACKOFF_MS: z.coerce.number().int().min(10).default(2000),
   SOURCE_ALLOWED_HOSTS: z.string().default(''),
+  METRICS_ENABLED: z.enum(['true', 'false']).default('false'),
+  METRICS_HOST: z.string().default('127.0.0.1'), METRICS_PORT: z.coerce.number().int().min(1).max(65535).default(9095),
 });
 export function loadConfig(env: Record<string, string | undefined> = process.env) {
   const result = schema.safeParse(env);
@@ -22,11 +25,12 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const e = result.data;
   if (e.NODE_ENV === 'production' && e.COOKIE_SECURE !== 'true') throw new Error('COOKIE_SECURE must be true in production');
   return {
-    databaseUrl: e.DATABASE_URL, redisUrl: e.REDIS_URL, chatBaseUrl: e.CHAT_BASE_URL, chatApiKey: e.CHAT_API_KEY, chatModel: e.CHAT_MODEL,
+    databaseUrl: e.DATABASE_URL, databasePoolMax: e.DB_POOL_MAX, redisUrl: e.REDIS_URL, chatBaseUrl: e.CHAT_BASE_URL, chatApiKey: e.CHAT_API_KEY, chatModel: e.CHAT_MODEL,
     embeddingBaseUrl: e.EMBEDDING_BASE_URL, embeddingApiKey: e.EMBEDDING_API_KEY, embeddingModel: e.EMBEDDING_MODEL, embeddingDim: e.EMBEDDING_DIM,
     port: e.PORT, host: e.HOST, appOrigin: e.APP_ORIGIN, secureCookies: e.COOKIE_SECURE === 'true', nodeEnv: e.NODE_ENV,
     version: e.APP_VERSION, queuePrefix: e.QUEUE_PREFIX, modelTimeoutMs: e.MODEL_TIMEOUT_MS, taskAttempts: e.TASK_ATTEMPTS,
     taskBackoffMs: e.TASK_BACKOFF_MS, allowedSourceHosts: e.SOURCE_ALLOWED_HOSTS.split(',').map(x => x.trim()).filter(Boolean),
+    metricsEnabled: e.METRICS_ENABLED === 'true', metricsHost: e.METRICS_HOST, metricsPort: e.METRICS_PORT,
   };
 }
 export type Config = ReturnType<typeof loadConfig>;

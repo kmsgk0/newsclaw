@@ -2,6 +2,8 @@
 
 2026-11-10 的处理结果见[问题修复记录](security-fix-log.md)与[修复评审](review-02.md)。以下保存首次检查版本的结果，包含修复前的红项。
 
+近期隔离验证见[安全门禁红绿对照](gate-red-green.md)、[技能审计回查](audit-recheck.md)、[SEC-08 四步实验](sec08-experiment.md)、[数据库变更](database-change.md)、[干净目录启动检查](boot-reproduce.md)、[流水线状态](pipeline.md)、[监控与告警检查](observability-check.md)、[压测报告](bench.md)和[课程要求对照](../docs/verification/course-08-10.md)。真实用户反馈尚未收集，记录入口见[反馈文件](feedback.md)。
+
 ## 首次检查
 
 检查版本：`19e0b801f54fcd95a9d2846cb927321ac78e99ac`（2026-11-09 应用初版）。范围包括账号、新闻、个人编辑、MCP 工具、阅读技能、专题和后台任务。执行环境为 macOS、Node.js 26.13.0、npm 11.20.0，使用隔离 PostgreSQL、Redis 和浏览器，外部信源与模型采用可控 HTTP 替身；真实模型结果见 [AI 评测](../docs/verification/ai-results.md)。

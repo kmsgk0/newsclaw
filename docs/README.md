@@ -13,6 +13,7 @@ NewsClaw 将公共新闻、个人编辑和持续跟进放在同一个阅读空�
 | 依赖的用途与许可 | [依赖说明](dependencies.md) |
 | 开发、Spec、提交与归档 | [开发指南](../CONTRIBUTING.md)、[项目规则](../AGENTS.md) |
 | Docker 验收、单项检查及 AI 样例 | [检查入口](verification/checks.md)、[安全检查方法](verification/security.md)、[AI 评测样例](verification/ai-cases.md) |
+| 第 8 至 10 课要求与当前证据 | [课程要求对照](verification/course-08-10.md) |
 | 实际检查结果与待修改项 | [正式报告](../reports/README.md)、[代码审查](verification/code-review.md)、[AI 评测结果](verification/ai-results.md) |
 
 ## 能力与场景索引
