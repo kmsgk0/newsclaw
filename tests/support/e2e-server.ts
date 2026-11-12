@@ -41,6 +41,13 @@ await env.ctx.db.query(
   "UPDATE news SET content=$2,published_at=now()+interval '1 second' WHERE id=$1",
   [env.state.toolNewsId, markdown],
 );
+await env.ctx.db.query(
+  `INSERT INTO news(source_id,url,title,published_at,content,content_scope,content_hash,language,domain)
+   VALUES($1,$2,$3,now()-interval '31 days',$4,'full','fixture-xss','zh','科技综合')`,
+  [env.source.id, 'https://example.org/news/xss-fixture',
+    'SECXSS_FIXTURE <img src=x onerror="window.__newsclawXss=1"><script>window.__newsclawXss=2</script>',
+    '用于检查标题是否安全显示的合成新闻。'],
+);
 const graphEvent = await env.ctx.db.one<{ id: string }>(
   'INSERT INTO events(title,summary) VALUES($1,$2) RETURNING id',
   ['多组关系图布局样本', '仅用于图谱阅读与布局的独立测试材料。'],

@@ -53,6 +53,12 @@ export class AccountRepository {
     );
   }
 
+  refreshSessionId(refreshHash: string) {
+    return this.db.one<{ id: string }>(
+      'SELECT id FROM sessions WHERE refresh_hash=$1 AND refresh_expires>now()', [refreshHash],
+    );
+  }
+
   accessSession(accessHash: string) {
     return this.db.one<SessionActor>(
       'SELECT u.id,u.username,u.role,s.id session_id FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.access_hash=$1 AND s.access_expires>now() AND s.refresh_expires>now()',

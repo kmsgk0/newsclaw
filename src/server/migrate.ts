@@ -16,6 +16,7 @@ export async function migrate(db: Db) {
   });
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  const db = new Db(loadConfig().databaseUrl);
+  const config = loadConfig();
+  const db = new Db(config.databaseUrl, undefined, config.databasePoolMax);
   try { await migrate(db); console.log('Migrations applied'); } finally { await db.close(); }
 }

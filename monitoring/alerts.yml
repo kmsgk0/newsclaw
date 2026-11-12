@@ -1,0 +1,24 @@
+groups:
+  - name: newsclaw
+    rules:
+      - alert: NewsClawQueueBacklog
+        expr: newsclaw_queue_jobs{state="waiting"} > 10
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: NewsClaw queue backlog exceeds ten jobs
+      - alert: NewsClawSkillErrors
+        expr: sum by (skill) (rate(newsclaw_skill_calls_total{result="failed"}[5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: NewsClaw skill execution failures detected
+      - alert: NewsClawQueueUnavailable
+        expr: newsclaw_queue_available == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: NewsClaw queue metrics are unavailable

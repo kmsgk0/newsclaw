@@ -36,7 +36,7 @@ test('EDITOR-01/05 settings and explicit memories persist with account isolation
   } finally {await env.cleanup();}
 });
 
-test('EDITOR-02/03 MCP-backed streaming preserves citations and private conversation history', async () => {
+test('EDITOR-02/03 validated answers preserve citations and private conversation history', async () => {
   const env=await editorEnvironment();
   try {
     const service=new EditorService(env.ctx);
@@ -50,11 +50,12 @@ test('EDITOR-02/03 MCP-backed streaming preserves citations and private conversa
     await assert.rejects(service.prepare(env.a,conversation!.id,{content:'同时追问'}),{code:'CONFLICT'});
     const events:{name:string;data:unknown}[]=[];
     await service.execute(prepared,(name,data)=>events.push({name,data}),undefined,'fixture-request');
-    assert.ok(events.some(event=>event.name==='complete')); assert.ok(events.filter(event=>event.name==='text').length>=2);
+    assert.ok(events.some(event=>event.name==='complete')); assert.equal(events.filter(event=>event.name==='text').length,1);
     const restored=await service.conversation(env.a,conversation!.id);
     assert.equal(restored.messages.length,2);assert.equal(restored.messages[1].status,'completed');
     assert.equal(restored.messages[1].sources[0].id,env.newsId);
     assert.match(restored.messages[1].content,/价格尚未公布/);
+    assert.deepEqual(events.find(event=>event.name==='text')?.data,{text:restored.messages[1].content});
     assert.equal((await env.ctx.db.query("SELECT * FROM activities WHERE user_id=$1 AND kind='question'",[env.a.id])).length,1);
     const mcp=await createNewsMcp(env.ctx,env.a);
     try {
@@ -107,7 +108,9 @@ test('EDITOR-03/SKILL-03 failures preserve prior answers and cannot become compl
     for (const mode of ['failure','truncated','bad-citation']) {
       env.state.mode=mode;const events:string[]=[];
       await service.execute(await service.prepare(env.a,conversation!.id,{content:'继续解释'}),name=>events.push(name));
-      assert.ok(events.includes('error'));assert.ok(!events.includes('complete'));
+      assert.ok(events.includes('error'));assert.ok(!events.includes('complete'));assert.ok(!events.includes('text'));
+      const failed=(await service.conversation(env.a,conversation!.id)).messages.at(-1)!;
+      assert.equal(failed.content,'');
     }
     const catalog=await skills.list(),map=await skills.install(env.a,catalog.find(skill=>skill.kind==='mindmap')!.id);
     env.state.mode='bad-map';const events:string[]=[];

@@ -14,7 +14,7 @@ import { registerEditor } from './modules/editor/index.js';
 import { registerSkills } from './modules/skills/index.js';
 
 export function createContext(config:Config=loadConfig()):AppContext {
-  const db=new Db(config.databaseUrl);
+  const db=new Db(config.databaseUrl,undefined,config.databasePoolMax);
   return {config,db,tasks:new TaskService(db,config),model:new ModelClient(config),logger};
 }
 export async function closeContext(ctx:AppContext) {await ctx.tasks.close();await ctx.model.close();await ctx.db.close();}

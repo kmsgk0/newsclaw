@@ -1,6 +1,18 @@
 import { test, expect } from "@playwright/test";
 import { navigate, fits } from "./helpers";
 
+test("SEC-10 a stored malicious title remains escaped text in the actual news list", async ({ page }) => {
+  await page.addInitScript(() => { Object.assign(window, { __newsclawXss: 0 }); });
+  await page.goto("/?q=SECXSS_FIXTURE");
+  const title = page.locator(".news-row h3 a");
+  await expect(title).toHaveCount(1);
+  await expect(title).toContainText('SECXSS_FIXTURE <img src=x onerror="window.__newsclawXss=1">');
+  expect(await title.innerHTML()).toContain("&lt;img");
+  expect(await title.innerHTML()).toContain("&lt;script&gt;");
+  await expect(title.locator("img, script")).toHaveCount(0);
+  expect(await page.evaluate(() => (window as unknown as { __newsclawXss: number }).__newsclawXss)).toBe(0);
+});
+
 test("NEWS-04 public reading, filters, empty results and responsive navigation", async ({
   page,
 }, info) => {

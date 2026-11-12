@@ -55,7 +55,8 @@ Gitleaks 使用 PATH 中的同名程序，也支持 `GITLEAKS_BIN`。从 [Gitlea
 | `npm run check:repo -- --base main` | 文档链接、图片、锚点、冲突标记和 diff 空白错误 |
 | `npm run check:commits -- --base main --head HEAD` | 提交格式与规约引用 |
 | `npm run test:checks` | 仓库检查、编排、容器入口和报告工具用例 |
-| `npm run check:security`、`make check-security` | 密钥扫描与全部依赖审计 |
+| `npm run check:security` | 密钥扫描与全部依赖审计，无需业务服务 |
+| `make check-security` | 密钥、依赖和工具检查，以及 SQL、CSRF、审计与浏览器 XSS 反例；自动构建应用，需要隔离 PostgreSQL、Redis、测试配置与 Chromium |
 | `npm run test:security` | 安全工具用例 |
 | `npm run lint`、`npm run typecheck` | 应用静态与类型检查 |
 | `npm test`、`npm run test:api` | 业务规则与集成测试、实际 HTTP 和队列进程检查 |
@@ -110,6 +111,6 @@ node scripts/checks/check-security.mjs dist .local/runtime.log
 
 ## GitHub Actions
 
-[PR workflow](../../.github/workflows/pr-checks.yml)在面向 main 的 PR 创建、更新和重新打开时运行，只申请 `contents: read`。三个任务分别调用同一清单中的 repository、security 和 application 组。应用任务使用隔离 PostgreSQL、Redis 和 HTTP 模型替身。
+[检查 workflow](../../.github/workflows/pr-checks.yml)在面向 main 的 PR 和 main 推送时运行，只申请 `contents: read`。仓库和应用任务调用对应检查组；安全任务运行 `make check-security`，复用安全阶段与应用安全反例。应用和安全任务均使用隔离 PostgreSQL、Redis 和 HTTP 模型替身。
 
 文件与规格检查使用合并结果。提交检查显式使用事件中的 base、head SHA，仅核对开发者提交。各组结果分别显示，失败返回非零；完整本地验收使用相同阶段实现。正式记录见[报告索引](../../reports/README.md)。

@@ -3,6 +3,8 @@ name: PR checks
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -63,14 +65,38 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Repository checks
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/checks/check.mjs --group repository --base "$BASE_SHA" --head "$HEAD_SHA"
 
   security-checks:
     name: Security checks
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    services:
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: newsclaw
+          POSTGRES_PASSWORD: isolated-test-password
+          POSTGRES_DB: newsclaw
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U newsclaw -d newsclaw"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7.4-alpine
+        ports: [6379:6379]
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://newsclaw:isolated-test-password@127.0.0.1:5432/newsclaw
+      REDIS_URL: redis://127.0.0.1:6379
+      CHAT_BASE_URL: http://127.0.0.1:4999/v1
+      CHAT_API_KEY: synthetic-fixture
+      CHAT_MODEL: fixture
+      EMBEDDING_BASE_URL: http://127.0.0.1:4999/v1
+      EMBEDDING_API_KEY: synthetic-fixture
+      EMBEDDING_MODEL: fixture
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -81,6 +107,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npx playwright install chromium --only-shell --with-deps
       - name: Install Gitleaks
         shell: bash
         run: |
@@ -97,4 +124,18 @@ jobs:
           tar -xzf "$archive" gitleaks
           echo "GITLEAKS_BIN=$RUNNER_TEMP/gitleaks/gitleaks" >> "$GITHUB_ENV"
       - name: Security checks
-        run: node scripts/checks/check.mjs --group security
+        run: make check-security
+
+  image-build:
+    name: Production image
+    needs: [application-checks, repository-checks, security-checks]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build image for this commit
+        env:
+          BUILD_SHA: ${{ github.sha }}
+        run: docker build --tag "newsclaw:${BUILD_SHA}" .

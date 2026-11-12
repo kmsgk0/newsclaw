@@ -55,9 +55,16 @@ async function parseResponse<T>(response: Response): Promise<T> {
 export async function refreshSession(): Promise<User | null> {
   if (refreshRequest) return refreshRequest;
   refreshRequest = (async () => {
+    const csrfResponse = await fetch("/api/v1/auth/csrf", { credentials: "include" });
+    if (csrfResponse.status === 401) {
+      session.set(null);
+      return null;
+    }
+    const { token } = await parseResponse<{ token: string }>(csrfResponse);
     const response = await fetch("/api/v1/auth/refresh", {
       method: "POST",
       credentials: "include",
+      headers: { "X-CSRF-Token": token },
     });
     if (response.status === 401) {
       session.set(null);
@@ -84,6 +91,18 @@ export async function authenticatedFetch(
   if (init.body) headers.set("Content-Type", "application/json");
   let response: Response;
   try {
+    if (accessToken && !["GET", "HEAD", "OPTIONS"].includes((init.method ?? "GET").toUpperCase())) {
+      const csrfResponse = await fetch("/api/v1/auth/csrf", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        credentials: "include",
+        signal: init.signal,
+      });
+      if (csrfResponse.status === 401 && retry && !path.startsWith("/auth/")) {
+        if (await refreshSession()) return authenticatedFetch(path, init, false);
+      }
+      const { token } = await parseResponse<{ token: string }>(csrfResponse);
+      headers.set("X-CSRF-Token", token);
+    }
     response = await fetch(path.startsWith("/api/") ? path : `/api/v1${path}`, {
       ...init,
       headers,
@@ -91,6 +110,7 @@ export async function authenticatedFetch(
     });
   } catch (error) {
     if (init.signal?.aborted) throw error;
+    if (error instanceof ApiError) throw error;
     throw new ApiError(0, "NETWORK_ERROR", "连接失败，请检查网络后重试。");
   }
   if (response.status === 401 && retry && !path.startsWith("/auth/")) {
