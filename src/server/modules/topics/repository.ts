@@ -29,10 +29,14 @@ export class TopicsRepository {
     await this.refresh(String(r!.id),userId);return this.get(String(r!.id),userId);
   }
   async update(id:string,userId:string,input:{name?:string;description?:string;filter?:TopicFilter}) {
-    const old=await this.get(id,userId);
-    if(input.filter?.eventId&&!await this.db.one('SELECT id FROM events WHERE id=$1',[input.filter.eventId]))throw notFound();
-    await this.db.query('UPDATE topics SET name=$3,description=$4,filter=$5,updated_at=now() WHERE id=$1 AND user_id=$2',[id,userId,input.name??old.name,input.description??old.description,JSON.stringify(input.filter??old.filter)]);
-    await this.refresh(id,userId);return this.get(id,userId);
+    return this.db.tx(async tx => {
+      const saved = await tx.one('UPDATE topics SET name=COALESCE($3,name),description=COALESCE($4,description),filter=COALESCE($5::jsonb,filter),updated_at=now() WHERE id=$1 AND user_id=$2 RETURNING id', [id,userId,input.name??null,input.description??null,input.filter===undefined?null:JSON.stringify(input.filter)]);
+      if (!saved) throw notFound();
+      if (input.filter?.eventId && !await tx.one('SELECT id FROM events WHERE id=$1', [input.filter.eventId])) throw notFound();
+      const repository = new TopicsRepository(tx);
+      await repository.refresh(id,userId);
+      return repository.get(id,userId);
+    });
   }
   async remove(id:string,userId:string) {return this.db.tx(async tx=>{const row=await tx.one('DELETE FROM topics WHERE id=$1 AND user_id=$2 RETURNING id',[id,userId]);if(!row)throw notFound();await tx.query("DELETE FROM follows WHERE user_id=$1 AND kind='topic' AND target_id=$2",[userId,id]);return {deleted:true};});}
   async news(id:string,userId:string) {
