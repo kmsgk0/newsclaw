@@ -162,3 +162,45 @@ test('TOPIC-07 a large progress window reports its total and bounds displayed re
     assert.equal((await f.topics.updates(topic.id,f.a)).total,0);
   }finally{await f.cleanup();}
 });
+
+test('TOPIC-07 overlapping transactions use arrival time and wait for committed topic membership',async()=>{
+  const f=await fixture();
+  let beginInsert=()=>{},commitInsert=()=>{};
+  let writer:Promise<void>|undefined;
+  try {
+    const topic=await f.topics.repo.create(f.a.id,{name:'手动加入',description:'',filter:{keywords:'no-matching-keyword'}});
+    let began=()=>{},inserted=()=>{};
+    const started=new Promise<void>(resolve=>{began=resolve;});
+    const insertGate=new Promise<void>(resolve=>{beginInsert=resolve;});
+    const saved=new Promise<void>(resolve=>{inserted=resolve;});
+    const commitGate=new Promise<void>(resolve=>{commitInsert=resolve;});
+    let writerPid=0;
+    writer=f.ctx.db.tx(async tx=>{
+      writerPid=(await tx.one<{pid:number}>('SELECT pg_backend_pid() AS pid,now()'))!.pid;
+      began();await insertGate;
+      await new TopicsRepository(tx).addNews(topic.id,f.a.id,f.first);
+      inserted();await commitGate;
+    });
+    await started;
+    const before=await f.topics.repo.updates(topic.id,f.a.id);
+    assert.equal(before.total,0);
+    beginInsert();await saved;
+    const window=f.topics.repo.updates(topic.id,f.a.id);
+    let blocked=false;
+    try {
+      const deadline=Date.now()+3000;
+      while(Date.now()<deadline&&!blocked) {
+        blocked=(await f.ctx.db.one<{blocked:boolean}>('SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE $1=ANY(pg_blocking_pids(pid))) AS blocked',[writerPid]))!.blocked;
+        if(!blocked)await new Promise(resolve=>setTimeout(resolve,10));
+      }
+    }finally{commitInsert();}
+    await writer;
+    const after=await window;
+    assert.equal(blocked,true,'window must wait for the topic membership transaction');
+    assert.equal(after.total,1);
+    await f.topics.repo.markRead(topic.id,f.a.id,before.asOf);
+    assert.equal((await f.topics.repo.updates(topic.id,f.a.id)).total,1,'a transaction started before the cutoff must retain its later arrival as unread');
+    await f.topics.repo.markRead(topic.id,f.a.id,after.asOf);
+    assert.equal((await f.topics.repo.updates(topic.id,f.a.id)).total,0);
+  }finally{beginInsert();commitInsert();await writer;await f.cleanup();}
+});
