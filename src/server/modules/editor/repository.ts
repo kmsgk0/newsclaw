@@ -4,6 +4,7 @@ import type { ModelUsage } from '../../adapters/model.js';
 import type { MaterialScope, NewsItem } from '../news/types.js';
 import type { MindmapNode } from '../topics/validation.js';
 import { businessDate, dayBounds } from './calendar.js';
+import type { AnswerFeedback } from '../feedback/repository.js';
 
 export interface EditorProfile { userId: string; name: string; avatar: string; style: string; interests: string; activityCursor: string; memoryRevision: string }
 export interface Citation { id: string; label: string; title: string; url: string; sourceName: string }
@@ -58,7 +59,7 @@ export class EditorRepository {
   async failInterruptedAnswers() {
     return this.db.query("UPDATE messages SET status='failed',error=$1,finished_at=now() WHERE role='assistant' AND status='pending' RETURNING id", [JSON.stringify({ status:503, code:'DEPENDENCY_UNAVAILABLE', message:'服务重启，本次回答已中断，请重试' })]);
   }
-  messages(conversationId: string) { return this.db.query<Message>(`SELECT ${messageColumns} FROM messages WHERE conversation_id=$1 ORDER BY created_at,id`, [conversationId]); }
+  messages(conversationId: string) { return this.db.query<Message & {feedback:AnswerFeedback|null}>(`SELECT ${messageColumns},(SELECT json_build_object('category',f.category,'sourceLabel',f.source_label,'note',f.note,'updatedAt',f.updated_at) FROM answer_feedback f WHERE f.message_id=messages.id) AS feedback FROM messages WHERE conversation_id=$1 ORDER BY created_at,id`, [conversationId]); }
   async begin(userId: string, id: string, question: string, skillId?: string, context?: MaterialScope, retryMessageId?: string, skillName?: string) {
     return this.db.tx(async tx => {
       const conversation = await tx.one(`SELECT id FROM conversations WHERE id=$1 AND user_id=$2 FOR UPDATE`, [id, userId]);

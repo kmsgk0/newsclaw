@@ -1,7 +1,8 @@
 import { Check, Copy, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { ApiError, useOperation } from "../../api";
-import type { MaterialContext, Message, PersonalSkill } from "../../types";
+import type { AnswerFeedback, MaterialContext, Message, PersonalSkill } from "../../types";
+import { AnswerFeedbackControl } from './feedback';
 import { ArtifactView } from "../artifact";
 import { Prose, Sources } from "../content";
 import { ErrorState, Feedback, Loading } from "../ui";
@@ -28,7 +29,7 @@ function CopyMessage({ content }: { content: string }) {
   );
 }
 
-export function ChatMessages({ messages, editorName, skills, busy, effectiveContext, text, onRetry, onArtifactSaved }: {
+export function ChatMessages({ messages, editorName, skills, busy, effectiveContext, text, onRetry, onArtifactSaved, onFeedback }: {
   messages: Message[];
   editorName?: string;
   skills: PersonalSkill[];
@@ -37,6 +38,7 @@ export function ChatMessages({ messages, editorName, skills, busy, effectiveCont
   text: string;
   onRetry: (question: string, message: Message) => void;
   onArtifactSaved?: () => void;
+  onFeedback: (messageId:string,feedback:AnswerFeedback|null) => void;
 }) {
   return <>
             {messages.map((message, index) => (
@@ -102,6 +104,7 @@ export function ChatMessages({ messages, editorName, skills, busy, effectiveCont
                 />
                 {message.role === "assistant" && (
                   <div className="message-actions">
+                    {message.status === 'completed' && <AnswerFeedbackControl message={message} onChange={feedback=>onFeedback(message.id,feedback)} />}
                     {message.content && (
                       <CopyMessage content={message.content} />
                     )}

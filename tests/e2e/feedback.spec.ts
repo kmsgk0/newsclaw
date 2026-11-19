@@ -1,0 +1,37 @@
+import {test,expect} from '@playwright/test';
+import {register,fits} from './helpers';
+
+test('EDITOR-08 answer feedback survives reopening, validates citation selection and can be withdrawn',async({page},info)=>{
+  await register(page);
+  await page.locator('.chat-header').getByRole('button',{name:'选择阅读材料',exact:true}).click();
+  await page.getByRole('dialog').locator('.material-result').first().click();
+  await page.getByLabel('向编辑提问',{exact:true}).fill('请概括当前报道。');
+  await page.getByRole('button',{name:'发送问题',exact:true}).click();
+  const answer=page.locator('.chat-message.assistant');
+  await answer.getByRole('button',{name:'有用',exact:true}).click();
+  await expect(answer.getByRole('button',{name:'有用',exact:true})).toHaveAttribute('aria-pressed','true');
+  await page.reload();
+  await expect(answer.getByRole('button',{name:'有用',exact:true})).toHaveAttribute('aria-pressed','true');
+  await answer.getByRole('button',{name:'反馈问题',exact:true}).click();
+  const dialog=page.getByRole('dialog');
+  await dialog.getByLabel('反馈类型',{exact:true}).selectOption('unsupported_citation');
+  await expect(dialog.getByLabel('问题引用',{exact:true})).toHaveValue('N1');
+  await dialog.getByLabel('反馈备注',{exact:true}).fill('这条来源还不足以支持结论，需要补充证据。');
+  await dialog.getByRole('button',{name:'保存反馈',exact:true}).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(answer).toContainText('已反馈：引用不支持 N1');
+  await fits(page);
+  await page.screenshot({path:info.outputPath('answer-feedback.png')});
+  await page.reload();
+  await expect(answer).toContainText('已反馈：引用不支持 N1');
+  await answer.getByRole('button',{name:'修改反馈',exact:true}).click();
+  await expect(dialog.getByLabel('反馈备注',{exact:true})).toHaveValue('这条来源还不足以支持结论，需要补充证据。');
+  await dialog.getByLabel('反馈类型',{exact:true}).selectOption('inaccurate');
+  await dialog.getByRole('button',{name:'保存反馈',exact:true}).click();
+  await expect(answer).toContainText('已反馈：事实不准确');
+  await answer.getByRole('button',{name:'撤回反馈',exact:true}).click();
+  await expect(answer.getByRole('button',{name:'撤回反馈',exact:true})).toHaveCount(0);
+  await page.reload();
+  await expect(answer.getByRole('button',{name:'有用',exact:true})).toHaveAttribute('aria-pressed','false');
+  await expect(answer.getByRole('button',{name:'反馈问题',exact:true})).toBeVisible();
+});

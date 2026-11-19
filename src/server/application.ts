@@ -13,6 +13,7 @@ import { registerTopics } from './modules/topics/index.js';
 import { registerEditor } from './modules/editor/index.js';
 import { registerSkills } from './modules/skills/index.js';
 import { registerGeneration } from './modules/generation/index.js';
+import { registerFeedback } from './modules/feedback/index.js';
 
 export function createContext(config:Config=loadConfig()):AppContext {
   const db=new Db(config.databaseUrl,undefined,config.databasePoolMax);
@@ -21,7 +22,7 @@ export function createContext(config:Config=loadConfig()):AppContext {
 export async function closeContext(ctx:AppContext) {await ctx.tasks.close();await ctx.model.close();await ctx.db.close();}
 export async function createApp(ctx:AppContext) {
   const app=await createBaseApp(ctx);
-  await registerNews(app,ctx);await registerTopics(app,ctx);await registerEditor(app,ctx);await registerSkills(app,ctx);await registerGeneration(app,ctx);
+  await registerNews(app,ctx);await registerTopics(app,ctx);await registerEditor(app,ctx);await registerSkills(app,ctx);await registerGeneration(app,ctx);await registerFeedback(app,ctx);
   const web=path.resolve('dist/web');
   if(existsSync(path.join(web,'index.html'))) {
     await app.register(staticFiles,{root:web,prefix:'/'});

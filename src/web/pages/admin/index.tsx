@@ -4,6 +4,7 @@ import { NewsManagement } from "./news";
 import { SkillManagement } from "./skills";
 import { SourceManagement } from "./sources";
 import { TaskManagement } from "./tasks";
+import { FeedbackManagement } from './feedback';
 
 export function AdminPage() {
   const [params, setParams] = useSearchParams();
@@ -21,6 +22,7 @@ export function AdminPage() {
           { value: 'news', label: '新闻与事件' },
           { value: 'skills', label: '公开技能' },
           { value: 'tasks', label: '后台任务' },
+          { value: 'feedback', label: '回答反馈' },
         ]}
         onChange={(value) => setParams({ view: value })}
       />
@@ -30,6 +32,8 @@ export function AdminPage() {
         <NewsManagement />
       ) : view === 'skills' ? (
         <SkillManagement />
+      ) : view === 'feedback' ? (
+        <FeedbackManagement />
       ) : (
         <TaskManagement />
       )}
