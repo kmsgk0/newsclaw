@@ -110,3 +110,20 @@ test('TOPIC-01 concurrent partial updates preserve both fields and reject anothe
     assert.deepEqual(await f.topics.repo.get(topic.id, f.a.id), saved);
   } finally { await f.cleanup(); }
 });
+
+test('TOPIC-01 detail returns refreshed owner contents and child queries cannot expose another account', async () => {
+  const f = await fixture();
+  try {
+    const topic = await f.topics.repo.create(f.a.id, { name: '详情', description: '', filter: { eventId: f.eventId } });
+    await f.topics.repo.addNote(topic.id, f.a.id, '私人笔记');
+    await f.topics.save(topic.id, f.a, { title: '简报', kind: 'brief', content: '已保存正文', sourceIds: [f.first] });
+    const detail = await f.topics.detail(topic.id, f.a);
+    assert.equal(detail.newsCount, 1);
+    assert.deepEqual(detail.news.map(news => news.id), [f.first]);
+    assert.equal(detail.notes[0].content, '私人笔记');
+    assert.equal(detail.artifacts[0].content, '已保存正文');
+    assert.deepEqual(await f.topics.repo.contents(topic.id, f.b.id), { news: [], notes: [], artifacts: [] });
+    await assert.rejects(f.topics.detail(topic.id, f.b), { code: 'NOT_FOUND' });
+    await assert.rejects(f.topics.detail(randomUUID(), f.a), { code: 'NOT_FOUND' });
+  } finally { await f.cleanup(); }
+});
