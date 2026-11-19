@@ -7,6 +7,7 @@ import { NewsRepository } from '../news/repository.js';
 import { NEWS_DOMAINS } from '../news/content.js';
 import { TopicsRepository, type ArtifactInput } from './repository.js';
 import { validateMindmap } from './validation.js';
+import { artifactMarkdown } from './export.js';
 export const filterSchema=z.object({keywords:z.string().trim().min(1).max(500).optional(),domain:z.enum(NEWS_DOMAINS).optional(),eventId:z.string().uuid().optional()}).strict().refine(value=>Boolean(value.keywords||value.domain||value.eventId),'请填写关键词、领域或事件');
 export const topicSchema=z.object({name:z.string().trim().min(1).max(200),description:z.string().max(4000).default(''),filter:filterSchema}).strict();
 export const artifactSchema=z.object({title:z.string().trim().min(1).max(200),kind:z.enum(['brief','comparison','mindmap']),content:z.string().min(1).max(100000).refine(value=>Boolean(value.trim()),'成果正文不能为空'),structure:z.unknown().optional(),skillId:z.string().optional(),sourceIds:z.array(z.string().uuid()).min(1).max(100),messageId:z.string().uuid().optional(),sourceSnapshots:z.array(z.unknown()).optional()}).strict();
@@ -20,6 +21,13 @@ export class TopicsService {
       this.repo.contents(id,actor.id), this.repo.following(actor.id,'topic',id),
     ]);
     return {...topic,...contents,following};
+  }
+  async updates(id:string,actor:Actor) {
+    await this.repo.refresh(id,actor.id);
+    return this.repo.updates(id,actor.id);
+  }
+  async export(artifactId:string,actor:Actor) {
+    return artifactMarkdown(await this.repo.exportable(artifactId,actor.id));
   }
   async save(id:string,actor:Actor,value:unknown){
     await this.repo.get(id,actor.id);let input=artifactSchema.parse(value);const sourceIds=[...new Set(input.sourceIds)];

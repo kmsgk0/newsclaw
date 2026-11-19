@@ -155,7 +155,15 @@ export interface Artifact {
   createdAt?: string;
 }
 
+export interface AnswerFeedback {
+  category: 'helpful' | 'inaccurate' | 'unsupported_citation';
+  sourceLabel: string | null;
+  note: string;
+  updatedAt: string;
+}
+
 export interface Message {
+  feedback?: AnswerFeedback | null;
   id: string;
   role: string;
   content: string;

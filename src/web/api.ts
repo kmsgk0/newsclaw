@@ -223,3 +223,13 @@ export function query(
 }
 
 export const operationId = () => crypto.randomUUID();
+
+export async function download(path: string) {
+  const response=await authenticatedFetch(path);
+  if(!response.ok) await parseResponse(response);
+  const url=URL.createObjectURL(await response.blob());
+  const anchor=document.createElement('a');
+  anchor.href=url;anchor.download='newsclaw-artifact.md';anchor.hidden=true;
+  document.body.append(anchor);
+  try {anchor.click();} finally {anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+}

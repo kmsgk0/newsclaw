@@ -9,7 +9,7 @@ export interface ChatMessage { role: 'system' | 'user' | 'assistant' | 'tool'; c
 export interface ToolDefinition { type: 'function'; function: { name: string; description: string; parameters: Record<string, unknown> } }
 export interface ChatResult { content: string; toolCalls: ToolCall[]; usage: ModelUsage }
 export class ModelError extends AppError {
-  constructor(message: string, public retryable = true, public issues: { path: string; code: string }[] = [], public usage?: ModelUsage) { super(503, 'DEPENDENCY_UNAVAILABLE', message); }
+  constructor(message: string, public retryable = true, public issues: { path: string; code: string }[] = [], public usage?: ModelUsage, public reason?: 'quota') { super(503, 'DEPENDENCY_UNAVAILABLE', message); }
 }
 export const emptyUsage = (): ModelUsage => ({ inputTokens: null, outputTokens: null, totalTokens: null });
 export function addUsage(previous: ModelUsage, current: ModelUsage): ModelUsage {
@@ -41,7 +41,7 @@ export class ModelClient {
           const code = body?.error?.code ?? '';
           const message = body?.error?.message ?? body?.message ?? '';
           if (code === 'insufficient_quota' || /今日.*额度.*用完|daily.*quota|quota.*exhausted|额度不足/i.test(message)) {
-            throw new ModelError(`${service}额度已用完，请联系管理员处理或等待额度恢复`, false);
+            throw new ModelError(`${service}额度已用完，请联系管理员处理或等待额度恢复`, false, [], undefined, 'quota');
           }
           throw new ModelError(`${service}请求过于频繁，请稍后重试`);
         }

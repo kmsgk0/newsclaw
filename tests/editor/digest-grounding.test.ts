@@ -37,7 +37,7 @@ test('EDITOR-04 unsupported interest evidence rejects the new digest and preserv
     const before = await repository.digests(env.a.id);
     assert.equal(before.length, 1);
     env.state.mode = 'unsupported-interest';
-    await assert.rejects(handler(task, run), /缺少可核对依据/);
+    await assert.rejects(handler(task, { ...run, executionId: randomUUID() }), /缺少可核对依据/);
     assert.deepEqual(await repository.digests(env.a.id), before);
   } finally { await env.cleanup(); }
 });

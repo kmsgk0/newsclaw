@@ -127,3 +127,80 @@ test('TOPIC-01 detail returns refreshed owner contents and child queries cannot 
     await assert.rejects(f.topics.detail(randomUUID(), f.a), { code: 'NOT_FOUND' });
   } finally { await f.cleanup(); }
 });
+
+test('TOPIC-07 grouped progress uses a stable cutoff and never marks later arrivals read',async()=>{
+  const f=await fixture();
+  try {
+    const topic=await f.topics.repo.create(f.a.id,{name:'进展',description:'',filter:{eventId:f.eventId}});
+    await f.ctx.db.query('UPDATE news SET summary=$2 WHERE id=$1',[f.first,'开放试用，价格未公布']);
+    const first=await f.topics.updates(topic.id,f.a);
+    assert.equal(first.since,null);assert.equal(first.total,1);assert.equal(first.groups[0].title,'Spruce event');
+    assert.equal(first.groups[0].news[0].summary,'开放试用，价格未公布');
+    assert.equal(first.groups[0].news[0].content,'');
+    const second=await f.add('late');await f.topics.repo.refresh(topic.id,f.a.id);
+    await f.ctx.db.query("UPDATE topic_news SET added_at=$3::timestamptz+interval '1 millisecond' WHERE topic_id=$1 AND news_id=$2",[topic.id,second,first.asOf]);
+    await f.topics.repo.markRead(topic.id,f.a.id,first.asOf);
+    const next=await f.topics.updates(topic.id,f.a);
+    assert.deepEqual(next.groups.flatMap(group=>group.news.map(news=>news.id)),[second]);
+    await f.topics.repo.markRead(topic.id,f.a.id,next.asOf);
+    await f.topics.repo.markRead(topic.id,f.a.id,first.asOf);
+    assert.equal((await f.topics.updates(topic.id,f.a)).total,0);
+    await assert.rejects(f.topics.updates(topic.id,f.b),{code:'NOT_FOUND'});
+    await assert.rejects(f.topics.repo.markRead(topic.id,f.a.id,'2099-01-01T00:00:00Z'),{code:'INVALID_INPUT'});
+  }finally{await f.cleanup();}
+});
+
+test('TOPIC-07 a large progress window reports its total and bounds displayed reports',async()=>{
+  const f=await fixture();
+  try {
+    await f.ctx.db.query("INSERT INTO news(source_id,url,title,content,content_scope,content_hash,event_id) SELECT source_id,'https://news.example/bulk-'||s,'Spruce report '||s,'body','summary','bulk-'||s,event_id FROM news CROSS JOIN generate_series(1,201) s WHERE id=$1",[f.first]);
+    const topic=await f.topics.repo.create(f.a.id,{name:'全部进展',description:'',filter:{eventId:f.eventId}});
+    const result=await f.topics.updates(topic.id,f.a);
+    assert.equal(result.total,202);assert.equal(result.displayed,200);assert.equal(result.truncated,true);
+    assert.equal(result.groups.length,1);
+    await f.topics.repo.markRead(topic.id,f.a.id,result.asOf);
+    assert.equal((await f.topics.updates(topic.id,f.a)).total,0);
+  }finally{await f.cleanup();}
+});
+
+test('TOPIC-07 overlapping transactions use arrival time and wait for committed topic membership',async()=>{
+  const f=await fixture();
+  let beginInsert=()=>{},commitInsert=()=>{};
+  let writer:Promise<void>|undefined;
+  try {
+    const topic=await f.topics.repo.create(f.a.id,{name:'手动加入',description:'',filter:{keywords:'no-matching-keyword'}});
+    let began=()=>{},inserted=()=>{};
+    const started=new Promise<void>(resolve=>{began=resolve;});
+    const insertGate=new Promise<void>(resolve=>{beginInsert=resolve;});
+    const saved=new Promise<void>(resolve=>{inserted=resolve;});
+    const commitGate=new Promise<void>(resolve=>{commitInsert=resolve;});
+    let writerPid=0;
+    writer=f.ctx.db.tx(async tx=>{
+      writerPid=(await tx.one<{pid:number}>('SELECT pg_backend_pid() AS pid,now()'))!.pid;
+      began();await insertGate;
+      await new TopicsRepository(tx).addNews(topic.id,f.a.id,f.first);
+      inserted();await commitGate;
+    });
+    await started;
+    const before=await f.topics.repo.updates(topic.id,f.a.id);
+    assert.equal(before.total,0);
+    beginInsert();await saved;
+    const window=f.topics.repo.updates(topic.id,f.a.id);
+    let blocked=false;
+    try {
+      const deadline=Date.now()+3000;
+      while(Date.now()<deadline&&!blocked) {
+        blocked=(await f.ctx.db.one<{blocked:boolean}>('SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE $1=ANY(pg_blocking_pids(pid))) AS blocked',[writerPid]))!.blocked;
+        if(!blocked)await new Promise(resolve=>setTimeout(resolve,10));
+      }
+    }finally{commitInsert();}
+    await writer;
+    const after=await window;
+    assert.equal(blocked,true,'window must wait for the topic membership transaction');
+    assert.equal(after.total,1);
+    await f.topics.repo.markRead(topic.id,f.a.id,before.asOf);
+    assert.equal((await f.topics.repo.updates(topic.id,f.a.id)).total,1,'a transaction started before the cutoff must retain its later arrival as unread');
+    await f.topics.repo.markRead(topic.id,f.a.id,after.asOf);
+    assert.equal((await f.topics.repo.updates(topic.id,f.a.id)).total,0);
+  }finally{beginInsert();commitInsert();await writer;await f.cleanup();}
+});

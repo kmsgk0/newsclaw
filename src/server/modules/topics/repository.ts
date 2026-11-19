@@ -1,11 +1,12 @@
 import { randomBytes } from 'node:crypto';
 import type { Db } from '../../db.js';
-import { notFound } from '../../errors.js';
+import { invalid, notFound } from '../../errors.js';
 import { newsDto, newsSelect, NewsRepository } from '../news/repository.js';
 import type { NewsItem, Graph, GraphEdge, GraphNode } from '../news/types.js';
 import type { GraphExtraction, MindmapNode } from './validation.js';
 import type { Artifact } from '../editor/repository.js';
 import { businessDate } from '../editor/calendar.js';
+import type { ExportArtifact } from './export.js';
 
 export interface TopicFilter { keywords?: string; domain?: string; eventId?: string }
 export interface Topic { id:string; name:string; description:string; filter:TopicFilter; newsCount:number; unreadCount:number; updatedAt:string }
@@ -18,8 +19,11 @@ const topicDto = (r:Record<string,unknown>):Topic => ({id:String(r.id),name:Stri
 export class TopicsRepository {
   constructor(readonly db:Db) {}
   async refresh(id:string|undefined,userId:string) {
-    await this.db.query(`DELETE FROM topic_news tn USING topics t,news n WHERE tn.topic_id=t.id AND tn.news_id=n.id AND t.user_id=$1 AND ($2::uuid IS NULL OR t.id=$2) AND NOT tn.manual AND NOT (${matchSql})`,[userId,id??null]);
-    await this.db.query(`INSERT INTO topic_news(topic_id,news_id) SELECT t.id,n.id FROM topics t CROSS JOIN news n WHERE t.user_id=$1 AND ($2::uuid IS NULL OR t.id=$2) AND n.selected AND ${matchSql} AND NOT EXISTS(SELECT 1 FROM topic_news_exclusions x WHERE x.topic_id=t.id AND x.news_id=n.id) ON CONFLICT DO NOTHING`,[userId,id??null]);
+    await this.db.tx(async tx=>{
+      await tx.query('SELECT id FROM topics WHERE user_id=$1 AND ($2::uuid IS NULL OR id=$2) ORDER BY id FOR UPDATE',[userId,id??null]);
+      await tx.query(`DELETE FROM topic_news tn USING topics t,news n WHERE tn.topic_id=t.id AND tn.news_id=n.id AND t.user_id=$1 AND ($2::uuid IS NULL OR t.id=$2) AND NOT tn.manual AND NOT (${matchSql})`,[userId,id??null]);
+      await tx.query(`INSERT INTO topic_news(topic_id,news_id) SELECT t.id,n.id FROM topics t CROSS JOIN news n WHERE t.user_id=$1 AND ($2::uuid IS NULL OR t.id=$2) AND n.selected AND ${matchSql} AND NOT EXISTS(SELECT 1 FROM topic_news_exclusions x WHERE x.topic_id=t.id AND x.news_id=n.id) ON CONFLICT DO NOTHING`,[userId,id??null]);
+    });
   }
   async list(userId:string) { await this.refresh(undefined,userId);return {items:(await this.db.query(`${topicSelect} WHERE t.user_id=$1 ORDER BY t.updated_at DESC,t.id`,[userId])).map(topicDto)}; }
   async get(id:string,userId:string) {const row=await this.db.one(`${topicSelect} WHERE t.id=$1 AND t.user_id=$2`,[id,userId]);if(!row)throw notFound();return topicDto(row);}
@@ -61,7 +65,29 @@ export class TopicsRepository {
       return {removed:true};
     });
   }
-  async markRead(id:string,userId:string) {const row=await this.db.one('UPDATE topics SET last_viewed_at=now() WHERE id=$1 AND user_id=$2 RETURNING id',[id,userId]);if(!row)throw notFound();return {read:true};}
+  async markRead(id:string,userId:string,through?:string) {
+    if (through && (!Number.isFinite(Date.parse(through)) || Date.parse(through)>Date.now())) throw invalid('已读截止时间无效');
+    const row=await this.db.one("UPDATE topics SET last_viewed_at=GREATEST(COALESCE(last_viewed_at,'-infinity'::timestamptz),COALESCE($3::timestamptz,clock_timestamp())) WHERE id=$1 AND user_id=$2 RETURNING id",[id,userId,through??null]);
+    if(!row)throw notFound();return {read:true};
+  }
+  async updates(id:string,userId:string) {
+    return this.db.tx(async tx=>{
+    await tx.query('SELECT id FROM topics WHERE id=$1 AND user_id=$2 FOR UPDATE',[id,userId]);
+    const window=await tx.one<{since:string|null;asOf:string}>(`SELECT to_char(last_viewed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS since,to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "asOf" FROM topics WHERE id=$1 AND user_id=$2`,[id,userId]);
+    if(!window)throw notFound();
+    const values=[id,userId,window.since,window.asOf];
+    const filter='t.id=$1 AND t.user_id=$2 AND ($3::timestamptz IS NULL OR tn.added_at>$3::timestamptz) AND tn.added_at<=$4::timestamptz';
+    const rows=await tx.query(`SELECT n.id,n.title,n.source_id,n.url,n.published_at,n.content_scope,n.summary,n.language,n.domain,n.event_id,n.created_at,n.processing,'' AS content,NULL AS translation,s.name AS source_name,e.title AS event_title FROM topic_news tn JOIN topics t ON t.id=tn.topic_id JOIN news n ON n.id=tn.news_id JOIN news_sources s ON s.id=n.source_id LEFT JOIN events e ON e.id=n.event_id WHERE ${filter} ORDER BY tn.added_at,n.id LIMIT 200`,values);
+    const count=await tx.one<{total:string}>(`SELECT count(*) AS total FROM topic_news tn JOIN topics t ON t.id=tn.topic_id WHERE ${filter}`,values);
+    const groups=new Map<string,{id:string;title:string;news:NewsItem[]}>();
+    for(const row of rows) {
+      const news=newsDto(row),key=news.eventId??'independent';
+      const group=groups.get(key)??{id:key,title:row.event_title?String(row.event_title):'独立报道',news:[]};
+      group.news.push(news);groups.set(key,group);
+    }
+    return {...window,total:Number(count!.total),displayed:rows.length,truncated:Number(count!.total)>rows.length,groups:[...groups.values()]};
+    });
+  }
   async notes(id:string,userId:string) {
     await this.get(id,userId);
     return this.readNotes(id,userId);
@@ -117,6 +143,10 @@ export class TopicsRepository {
   async preview(artifactId:string,userId:string) {
     const row=await this.db.one('SELECT title,kind,content,structure,sources FROM artifacts WHERE id=$1 AND user_id=$2',[artifactId,userId]);if(!row)throw notFound();
     return {title:row.title,kind:row.kind,content:row.content,structure:row.structure,sources:row.sources};
+  }
+  async exportable(artifactId:string,userId:string) {
+    const row=await this.db.one<ExportArtifact>('SELECT title,kind,content,structure,sources,created_at AS "savedAt" FROM artifacts WHERE id=$1 AND user_id=$2',[artifactId,userId]);
+    if(!row)throw notFound();return row;
   }
   async share(artifactId:string,userId:string) {return this.db.tx(async tx=>{
     const snapshot=await new TopicsRepository(tx).preview(artifactId,userId);const token=randomBytes(24).toString('base64url');

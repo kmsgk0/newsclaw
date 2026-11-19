@@ -60,7 +60,7 @@ export function ChatPanel({
     setFollowing(true);
   }, []);
   const { auth, activeId, effectiveContext, localContext, messages, text, setText, skillId, setSkillId,
-    busy, error, tool, enabled, profile, conversation, skills, reset, send, stop } = useChatSession({
+    busy, error, tool, enabled, profile, conversation, skills, reset, send, stop, feedbackChanged } = useChatSession({
     context, conversationId, initialSkillId, onConversation, onContextChange, onReset, onSendStart,
   });
   useLayoutEffect(() => {
@@ -180,7 +180,7 @@ export function ChatPanel({
             <ChatMessages messages={messages} editorName={profile.data?.name}
               skills={skills.data?.items ?? []} busy={busy} effectiveContext={effectiveContext}
               text={text} onRetry={(question, message) => void send(question, message)}
-              onArtifactSaved={onArtifactSaved} />
+              onArtifactSaved={onArtifactSaved} onFeedback={feedbackChanged} />
             {tool && (
               <p className="tool-status">
                 <LoaderCircle size={14} className="spin" />

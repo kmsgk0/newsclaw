@@ -1,7 +1,7 @@
-import { Check, Copy, Edit3, Globe, Link2, Share2, Trash2 } from "lucide-react";
+import { Check, Copy, Download, Edit3, Globe, Link2, Share2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
-import { api, useOperation, useResource } from "../../api";
+import { api, download, useOperation, useResource } from "../../api";
 import { ArtifactView } from "../../components/artifact";
 import { Prose, Sources } from "../../components/content";
 import { Mindmap } from "../../components/mindmap";
@@ -38,6 +38,7 @@ export function SavedArtifactCard({
       <ArtifactView artifact={artifact} />
       {artifact.sources && <Sources sources={artifact.sources} />}
       <div className="form-actions">
+        <button className="button secondary small" disabled={operation.busy} onClick={()=>operation.run(()=>download(`/artifacts/${artifact.id}/export`))}><Download size={14}/>导出 Markdown</button>
         <button
           className="button secondary small"
           onClick={() => setSharing(true)}

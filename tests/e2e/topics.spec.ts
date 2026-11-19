@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { navigate, register, fits } from "./helpers";
 
 test("NEWS-05 SKILL-02 TOPIC-01 favorite, skill, sourced artifact and revocable sharing", async ({
@@ -49,6 +50,16 @@ test("NEWS-05 SKILL-02 TOPIC-01 favorite, skill, sourced artifact and revocable 
   await page.getByRole("button", { name: "关闭阅读编辑", exact: true }).click();
   await page.getByRole("button", { name: /^阅读成果/ }).click();
   await expect(page.locator(".saved-artifact")).toHaveCount(1);
+  const downloaded=page.waitForEvent('download');
+  const exportedResponse=page.waitForResponse(response=>response.url().endsWith('/export'));
+  await page.getByRole('button',{name:'导出 Markdown',exact:true}).click();
+  expect((await exportedResponse).headers()['content-disposition']).toContain('.md');
+  const file=await downloaded;
+  expect(file.suggestedFilename()).toMatch(/\.md$/);
+  const exported=await readFile((await file.path())!,'utf8');
+  expect(exported).toContain('## 来源');
+  expect(exported).toContain('保存时间：');
+  expect(exported).toContain('云杉');
   await page.getByRole("button", { name: "预览并分享", exact: true }).click();
   await expect(page.getByRole("dialog")).toContainText("预览公开内容");
   await page

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, authenticatedFetch, useResource } from "../../api";
 import { useAuth } from "../../auth";
-import type { Artifact, Citation, Conversation, Editor, MaterialContext, Message, PersonalSkill } from "../../types";
+import type { AnswerFeedback, Artifact, Citation, Conversation, Editor, MaterialContext, Message, PersonalSkill } from "../../types";
 import type { ChatProps } from "./types";
 import { consumeChatEvents } from "./stream";
 
@@ -273,5 +273,7 @@ export function useChatSession({ context, conversationId, initialSkillId = '', o
     }
   }
   return { auth, activeId, effectiveContext, localContext, messages, text, setText, skillId, setSkillId,
-    busy, error, tool, enabled, profile, conversation, skills, reset, send, stop: () => controller.current?.abort() };
+    busy, error, tool, enabled, profile, conversation, skills, reset, send,
+    feedbackChanged: (messageId:string,feedback:AnswerFeedback|null) => setMessages(items=>items.map(item=>item.id===messageId?{...item,feedback}:item)),
+    stop: () => controller.current?.abort() };
 }
