@@ -25,11 +25,12 @@ export async function editorEnvironment() {
     if (req.url?.endsWith('/embeddings')) { res.setHeader('content-type','application/json'); res.end(JSON.stringify({data:[{embedding:[1,0,0]}]})); return; }
     if (body.stream) {
       res.setHeader('content-type','text/event-stream');
-      const toolRound = state.mode === 'tool' && !body.messages.some((message: { role: string }) => message.role === 'tool');
+      const toolRound = ['tool', 'tool-preamble'].includes(state.mode) && !body.messages.some((message: { role: string }) => message.role === 'tool');
       const expandsScope = state.mode === 'scope-expansion' && body.tools?.some((tool:{function:{name:string}})=>tool.function.name==='news_search');
       if (expandsScope) {
         res.write(`data: ${JSON.stringify({choices:[{delta:{tool_calls:[{index:0,id:'fixture-search',function:{name:'news_search',arguments:JSON.stringify({query:'unrelated news outside selected materials',semantic:false})}}]},finish_reason:'tool_calls'}]})}\n\n`);
       } else if (toolRound) {
+        if (state.mode === 'tool-preamble') res.write(`data: ${JSON.stringify({choices:[{delta:{content:'临时判断：商业价格是99元 [N999]。'}}]})}\n\n`);
         res.write(`data: ${JSON.stringify({choices:[{delta:{tool_calls:[{index:0,id:'fixture-call',function:{name:'news_read',arguments:JSON.stringify({id:state.toolId})}}]},finish_reason:'tool_calls'}]})}\n\n`);
       } else {
         const content = state.mode === 'bad-citation' ? '价格为99元 [N999]。' : '云杉引擎于2026年10月10日开放试用，商业价格尚未公布 [N1]。';

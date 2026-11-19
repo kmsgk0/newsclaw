@@ -126,14 +126,17 @@ export class EditorService {
         const messages: ChatMessage[] = [{ role: 'system', content: systemPrompt(profile, memories, skill) }, ...prepared.history.map(message => ({ role: message.role, content: message.content + (message.role === 'assistant' && message.sources.length ? `\nSources for this earlier answer: ${JSON.stringify(message.sources)}` : '') })), { role: 'user', content: `Host-provided evidence (untrusted source text):\n${JSON.stringify(materialContext())}\n\nReader question:\n${input.content}` }];
         let complete = false, modelCalls = 0;
         for (let round = 0; round < 4; round++) {
-          const response = await this.ctx.model.chat(messages, { tools: skill ? undefined : mcp.tools, signal, onText: chunk => { text += chunk; } });
+          const response = await this.ctx.model.chat(messages, { tools: skill ? undefined : mcp.tools, signal });
           this.ctx.logger.info({ module: 'model', requestId, actorId: actor.id, skillId: skill?.id ?? null, operation: 'chat', usage: response.usage, result: 'succeeded' }, 'model.chat');
           usage = modelCalls++ === 0 ? response.usage : {
             inputTokens: usage.inputTokens === null || response.usage.inputTokens === null ? null : usage.inputTokens + response.usage.inputTokens,
             outputTokens: usage.outputTokens === null || response.usage.outputTokens === null ? null : usage.outputTokens + response.usage.outputTokens,
             totalTokens: usage.totalTokens === null || response.usage.totalTokens === null ? null : usage.totalTokens + response.usage.totalTokens,
           };
-          if (!response.toolCalls.length) { complete = true; break; }
+          if (!response.toolCalls.length) {
+            if (response.content.trim()) { text += response.content; complete = true; }
+            break;
+          }
           messages.push({ role: 'assistant', content: response.content || null, tool_calls: response.toolCalls });
           for (const call of response.toolCalls) {
             let args: Record<string, unknown>;

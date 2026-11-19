@@ -67,6 +67,24 @@ test('EDITOR-02/03 validated answers preserve citations and private conversation
   } finally {await env.cleanup();}
 });
 
+test('EDITOR-02 tool preambles are excluded from published and persisted final answers', async () => {
+  const env = await editorEnvironment();
+  try {
+    env.state.mode = 'tool-preamble';
+    const service = new EditorService(env.ctx);
+    const conversation = (await service.createConversation(env.a, '核对价格'))!;
+    const events: { name: string; data: unknown }[] = [];
+    await service.execute(await service.prepare(env.a, conversation.id, { content: '价格公布了吗？' }), (name, data) => events.push({ name, data }));
+    const answer = (await service.conversation(env.a, conversation.id)).messages.at(-1)!;
+    assert.equal(answer.status, 'completed');
+    assert.match(answer.content, /商业价格尚未公布/);
+    assert.doesNotMatch(answer.content, /99元|N999|临时判断/);
+    assert.deepEqual(events.filter(event => event.name === 'text').map(event => event.data), [{ text: answer.content }]);
+    assert.ok(events.some(event => event.name === 'tool'));
+    assert.ok(!events.some(event => event.name === 'error'));
+  } finally { await env.cleanup(); }
+});
+
 test('SKILL-01/03 automatic matching leaves unscoped questions available and explicit skills require materials', async () => {
   const env=await editorEnvironment();
   try {
