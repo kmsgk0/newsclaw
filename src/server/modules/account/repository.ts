@@ -14,6 +14,7 @@ export class AccountRepository {
         [username, passwordHash],
       );
       await tx.query('INSERT INTO editors(user_id) VALUES($1)', [user!.id]);
+      await tx.query('INSERT INTO generation_settings(user_id) VALUES($1)', [user!.id]);
       return user!;
     });
   }

@@ -15,6 +15,7 @@ import {
 } from "../../components/ui";
 import type { Conversation, Editor, MaterialContext } from "../../types";
 import { ReadingHistory } from "./history";
+import { GenerationPanel } from "./generation";
 import { EditorSettings, Memories } from "./settings";
 
 export function EditorPage() {
@@ -186,7 +187,7 @@ export function EditorPage() {
             <ErrorState error={editor.error} retry={editor.reload} />
           )}
           {editor.data && (
-            <EditorSettings editor={editor.data} reload={editor.reload} />
+            <><EditorSettings editor={editor.data} reload={editor.reload} /><GenerationPanel /></>
           )}
         </>
       )}

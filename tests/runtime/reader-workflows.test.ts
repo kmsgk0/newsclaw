@@ -109,6 +109,7 @@ test('TOPIC-03 history uses Shanghai dates and a seven-day history separate from
 test('EDITOR-06 scheduler processes later same-day activity as a distinct batch', async () => {
   const env = await editorEnvironment();
   try {
+    await env.ctx.db.query("UPDATE generation_settings SET mode='updates' WHERE user_id=$1",[env.a.id]);
     await env.ctx.db.query('UPDATE news_sources SET enabled=false');
     await env.ctx.db.query("INSERT INTO activities(user_id,kind,news_id) VALUES($1,'read',$2)", [env.a.id, env.newsId]);
     const now = new Date('2026-11-09T03:00:00Z');
@@ -147,6 +148,7 @@ test('EDITOR-03 interrupted generation becomes retryable without losing the ques
 test('EDITOR-04 scheduler waits for collection and replaces an empty snapshot when material arrives', async () => {
   const env = await editorEnvironment();
   try {
+    await env.ctx.db.query("UPDATE generation_settings SET mode='updates' WHERE user_id=$1",[env.a.id]);
     const now = new Date();
     const date = businessDate(now);
     const scheduledAt = new Date(`${date}T12:00:00+08:00`);

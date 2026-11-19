@@ -7,6 +7,7 @@ import type { NewsItem } from '../news/types.js';
 import { readingMaterials, selectLabeledSources, sourceLabelsSchema } from '../news/materials.js';
 import { EditorRepository, type Activity, type EditorProfile, type Memory } from './repository.js';
 import { citationsFor, validateCitations } from './service.js';
+import { GenerationService } from '../generation/service.js';
 
 export const personalDigestSchema = z.object({
   content: z.string().min(1), sourceLabels: sourceLabelsSchema.min(1),
@@ -56,6 +57,7 @@ export async function preparePersonalDailyInput(ctx: AppContext, ownerId: string
 }
 export function createEditorHandlers(ctx: AppContext): { daily: TaskHandler; journal: TaskHandler } {
   const repository = new EditorRepository(ctx.db);
+  const generation = new GenerationService(ctx.db);
   const daily: TaskHandler = async (task, run) => {
     if (!task.owner_id) throw notFound();
     const userId = task.owner_id, date = z.iso.date().parse(task.input.date);
@@ -64,10 +66,11 @@ export function createEditorHandlers(ctx: AppContext): { daily: TaskHandler; jou
     const { profile, memories, news } = snapshot;
     if (!news.length) return { commit: async () => ({ date, status: 'empty', message: '当日暂无可用新闻' }) };
     const candidates = citationsFor(news);
-    const result = await ctx.model.json('personal-digest', {
+    const result = await generation.generate(task,run,()=>ctx.model.json('personal-digest', {
       instructions: personalDigestInstructions,
       date, profile: { editorName:profile.name,style:profile.style,interests:profile.interests }, memories, materials: readingMaterials(news),
-    }, personalDigestSchema, run.signal);
+    }, personalDigestSchema, run.signal));
+    if ('skipped' in result) return {commit:async()=>({date,...result})};
     const sources = selectLabeledSources(candidates,result.value.sourceLabels);
     if (!sources.length) throw unavailable('日报缺少可核对来源');
     validateCitations(result.value.content, sources);
@@ -90,11 +93,12 @@ export function createEditorHandlers(ctx: AppContext): { daily: TaskHandler; jou
     if (!snapshot || snapshot.profile.userId !== userId) throw notFound();
     if (!snapshot.activities.length) return { commit: async () => ({ skipped: true, date }) };
     const sources = citationsFor(snapshot.news);
-    const result = await ctx.model.json('reading-journal', {
+    const result = await generation.generate(task,run,()=>ctx.model.json('reading-journal', {
       instructions: `只整理本批新增活动，写一篇简短中文阅读手记。阅读、收藏和提问分别按实际活动记录描述，不把阅读或收藏称为已经讨论。${snapshot.questions.length ? '已讨论问题仅来自 questions 中实际问答。' : '本批没有对话，省略已讨论问题，只整理阅读内容和有材料依据的跟进线索。'} 使用自然段和必要的小标题。新闻事实引用给定 [N1] 材料，sourceLabels 只填写实际引用的材料编号，例如 N1。memories 只补充持续偏好；使用稳定主题 key，例如 response-style、interest-company，不能推翻编辑明确兴趣或已有手动偏好。没有证据的偏好不要推断。`,
       date, profile: { editorName:snapshot.profile.name,style:snapshot.profile.style,interests:snapshot.profile.interests }, memories: task.input.memories, activities: snapshot.activities, questions: snapshot.questions,
       materials: readingMaterials(snapshot.news),
-    }, journalSchema, run.signal);
+    }, journalSchema, run.signal));
+    if ('skipped' in result) return {commit:async()=>({date,...result})};
     const selectedSources = selectLabeledSources(sources,result.value.sourceLabels);
     validateCitations(result.value.content, selectedSources);
     ctx.logger.info({ module: 'editor', taskId: task.id, actorId: userId, operation: 'reading-journal', result: 'generated', usage: result.usage }, 'editor.journal');
