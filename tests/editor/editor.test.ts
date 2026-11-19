@@ -270,3 +270,20 @@ test('EDITOR-06 same-day incremental journals retain unique source labels across
     assert.deepEqual(journals[0].sources,[first,{...second,label:'N2'}]);
   } finally {await env.cleanup();}
 });
+
+test('EDITOR-04/06 material snapshots retain activity order and skip missing reports', async () => {
+  const env = await editorEnvironment();
+  try {
+    const original = await env.ctx.db.one<{ source_id: string }>('SELECT source_id FROM news WHERE id=$1', [env.newsId]);
+    const second = await env.ctx.db.one<{ id: string }>("INSERT INTO news(source_id,url,title,published_at,content,content_scope,content_hash,language,domain) VALUES($1,'https://example.com/second','第二篇',now(),'第二篇正文','full','snapshot-second','zh','科技综合') RETURNING id", [original!.source_id]);
+    const missing = randomUUID();
+    await env.ctx.db.query("INSERT INTO activities(user_id,kind,data) VALUES($1,'question',$2)", [env.a.id, JSON.stringify({ sourceIds: [second!.id, missing, env.newsId, second!.id] })]);
+    const journal = await prepareJournalInput(env.ctx, env.a.id, businessDate());
+    assert.deepEqual(journal.snapshot.news.map(news => news.id), [second!.id, env.newsId]);
+    assert.equal(journal.snapshot.news[0].content, '第二篇正文');
+    const daily = await preparePersonalDailyInput(env.ctx, env.a.id, businessDate());
+    assert.deepEqual(new Set(daily.snapshot.news.map(news => news.id)), new Set([env.newsId, second!.id]));
+    assert.equal(daily.snapshot.profile.userId, env.a.id);
+    assert.equal((await prepareJournalInput(env.ctx, env.b.id, businessDate())).snapshot.news.length, 0);
+  } finally { await env.cleanup(); }
+});
