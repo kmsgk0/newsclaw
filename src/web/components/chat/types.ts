@@ -10,4 +10,3 @@ export interface ChatProps {
   compact?: boolean;
   chooseMaterial?: boolean;
 }
-
