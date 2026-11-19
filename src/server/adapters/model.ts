@@ -12,6 +12,10 @@ export class ModelError extends AppError {
   constructor(message: string, public retryable = true, public issues: { path: string; code: string }[] = [], public usage?: ModelUsage) { super(503, 'DEPENDENCY_UNAVAILABLE', message); }
 }
 export const emptyUsage = (): ModelUsage => ({ inputTokens: null, outputTokens: null, totalTokens: null });
+export function addUsage(previous: ModelUsage, current: ModelUsage): ModelUsage {
+  const add = (a: number | null, b: number | null) => a === null || b === null ? null : a + b;
+  return { inputTokens: add(previous.inputTokens, current.inputTokens), outputTokens: add(previous.outputTokens, current.outputTokens), totalTokens: add(previous.totalTokens, current.totalTokens) };
+}
 export function readUsage(value: unknown): ModelUsage {
   const usage = z.object({ prompt_tokens: z.number().optional(), completion_tokens: z.number().optional(), total_tokens: z.number().optional() }).safeParse(value);
   return usage.success ? { inputTokens: usage.data.prompt_tokens ?? null, outputTokens: usage.data.completion_tokens ?? null, totalTokens: usage.data.total_tokens ?? null } : emptyUsage();
@@ -81,15 +85,16 @@ export class ModelClient {
     } catch { throw new ModelError('嵌入结果维度或结构无效'); }
   }
   async chat(messages: ChatMessage[], options: { tools?: ToolDefinition[]; onText?: (text: string) => void; signal?: AbortSignal } = {}): Promise<ChatResult> {
-    const response = await this.request('chat', {
-      model: this.config.chatModel, messages, stream: true, stream_options: { include_usage: true }, max_tokens: 8192,
-      ...(options.tools?.length ? { tools: options.tools, tool_choice: 'auto' } : {}),
-    }, options.signal);
-    if (!response.body) throw new ModelError('模型流式响应为空');
-    let content = '', buffer = '', finished = false, done = false, usage = emptyUsage();
-    const calls = new Map<number, ToolCall>();
-    const decoder = new TextDecoder();
+    let usage = emptyUsage();
     try {
+      const response = await this.request('chat', {
+        model: this.config.chatModel, messages, stream: true, stream_options: { include_usage: true }, max_tokens: 8192,
+        ...(options.tools?.length ? { tools: options.tools, tool_choice: 'auto' } : {}),
+      }, options.signal);
+      if (!response.body) throw new ModelError('模型流式响应为空');
+      let content = '', buffer = '', finished = false, done = false;
+      const calls = new Map<number, ToolCall>();
+      const decoder = new TextDecoder();
       for await (const bytes of response.body) {
         buffer += decoder.decode(bytes, { stream: true }).replace(/\r\n/g, '\n');
         let end: number;
@@ -99,9 +104,10 @@ export class ModelClient {
             if (!line.startsWith('data:')) continue;
             const data = line.slice(5).trim();
             if (data === '[DONE]') { done = true; continue; }
-            const part = z.object({ choices: z.array(z.object({ delta: z.object({ content: z.string().nullable().optional(), tool_calls: z.array(z.object({ index: z.number(), id: z.string().optional(), function: z.object({ name: z.string().optional(), arguments: z.string().optional() }).optional() })).optional() }), finish_reason: z.string().nullable().optional() })).optional(), usage: z.unknown().optional(), error: z.unknown().optional() }).parse(JSON.parse(data));
+            const payload: unknown = JSON.parse(data);
+            if (payload && typeof payload === 'object' && 'usage' in payload && payload.usage) usage = readUsage(payload.usage);
+            const part = z.object({ choices: z.array(z.object({ delta: z.object({ content: z.string().nullable().optional(), tool_calls: z.array(z.object({ index: z.number(), id: z.string().optional(), function: z.object({ name: z.string().optional(), arguments: z.string().optional() }).optional() })).optional() }), finish_reason: z.string().nullable().optional() })).optional(), usage: z.unknown().optional(), error: z.unknown().optional() }).parse(payload);
             if (part.error) throw new ModelError('模型执行失败');
-            if (part.usage) usage = readUsage(part.usage);
             for (const choice of part.choices ?? []) {
               if (choice.finish_reason && !['stop', 'tool_calls'].includes(choice.finish_reason)) throw new ModelError('模型回答未完整生成，请重试');
               if (choice.finish_reason) finished = true;
@@ -120,8 +126,8 @@ export class ModelClient {
       if (!finished || !done) throw new ModelError('模型流式传输中断，请重试');
       return { content, toolCalls: [...calls.values()], usage };
     } catch (error) {
-      if (error instanceof ModelError) throw error;
-      throw new ModelError('模型流式传输中断，请重试');
+      if (error instanceof ModelError) { error.usage = usage; throw error; }
+      throw new ModelError('模型流式传输中断，请重试', true, [], usage);
     }
   }
 }

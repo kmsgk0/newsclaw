@@ -85,6 +85,20 @@ test('EDITOR-02 tool preambles are excluded from published and persisted final a
   } finally { await env.cleanup(); }
 });
 
+test('OPS-04 editor failures combine known usage across tool rounds without inventing missing counts', async () => {
+  const env = await editorEnvironment();
+  try {
+    env.state.mode = 'tool-failure-usage';
+    const service = new EditorService(env.ctx);
+    const conversation = (await service.createConversation(env.a, '用量回归'))!;
+    await service.execute(await service.prepare(env.a, conversation.id, { content: '核对价格' }), () => {});
+    const answer = (await service.conversation(env.a, conversation.id)).messages.at(-1)!;
+    assert.equal(answer.status, 'failed');
+    const saved = await env.ctx.db.one('SELECT usage FROM messages WHERE id=$1', [answer.id]);
+    assert.deepEqual(saved!.usage, { inputTokens: 15, outputTokens: null, totalTokens: null });
+  } finally { await env.cleanup(); }
+});
+
 test('SKILL-01/03 automatic matching leaves unscoped questions available and explicit skills require materials', async () => {
   const env=await editorEnvironment();
   try {

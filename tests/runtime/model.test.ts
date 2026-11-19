@@ -88,3 +88,35 @@ test('EDITOR-03 model stream preserves chunks and rejects truncated completion',
     truncated = true; await assert.rejects(client.chat([{ role: 'user', content: 'question' }]), /中断/);
   } finally { await client.close(); server.close(); await once(server, 'close'); }
 });
+
+test('OPS-04 stream failures preserve supplied complete and partial usage', async t => {
+  const frame = (value: unknown) => `data: ${JSON.stringify(value)}\n\n`;
+  const usage = { prompt_tokens: 12, completion_tokens: 3, total_tokens: 15 };
+  const cases = [
+    { name: 'truncated', body: frame({ choices: [], usage }), expected: { inputTokens: 12, outputTokens: 3, totalTokens: 15 } },
+    { name: 'malformed frame', body: frame({ choices: [], usage }) + 'data: invalid-json\n\n', expected: { inputTokens: 12, outputTokens: 3, totalTokens: 15 } },
+    { name: 'invalid envelope', body: frame({ choices: 'invalid', usage }), expected: { inputTokens: 12, outputTokens: 3, totalTokens: 15 } },
+    { name: 'length limit', body: frame({ choices: [{ delta: {}, finish_reason: 'length' }], usage }), expected: { inputTokens: 12, outputTokens: 3, totalTokens: 15 } },
+    { name: 'partial usage', body: frame({ choices: [], usage: { prompt_tokens: 12 } }), expected: { inputTokens: 12, outputTokens: null, totalTokens: null } },
+    { name: 'missing usage', body: frame({ choices: [{ delta: { content: 'unfinished' } }] }), expected: { inputTokens: null, outputTokens: null, totalTokens: null } },
+  ];
+  let body = '';
+  const server = createServer(async (req, res) => {
+    for await (const _chunk of req) { /* consume request */ }
+    res.setHeader('content-type', 'text/event-stream'); res.end(body);
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  const address = server.address(); assert.ok(address && typeof address === 'object');
+  const base = `http://127.0.0.1:${address.port}/v1`;
+  const client = new ModelClient(loadConfig({ DATABASE_URL: 'postgresql://fixture:fixture@localhost/test', REDIS_URL: 'redis://localhost:6379', CHAT_BASE_URL: base, CHAT_API_KEY: 'synthetic', CHAT_MODEL: 'fixture', EMBEDDING_BASE_URL: base, EMBEDDING_API_KEY: 'synthetic', EMBEDDING_MODEL: 'fixture' }));
+  try {
+    for (const item of cases) await t.test(item.name, async () => {
+      body = item.body;
+      await assert.rejects(client.chat([{ role: 'user', content: 'question' }]), error => {
+        assert.ok(error instanceof ModelError);
+        assert.deepEqual(error.usage, item.expected);
+        return true;
+      });
+    });
+  } finally { await client.close(); server.close(); await once(server, 'close'); }
+});
