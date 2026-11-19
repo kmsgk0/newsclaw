@@ -72,7 +72,10 @@ export function ReadingHistory({ kind }: { kind: 'daily' | 'journals' }) {
       </div>
       <Feedback operation={operation} />
       {activeTask && (
-        <TaskWatch task={activeTask} onComplete={resource.reload} />
+        <TaskWatch task={activeTask} onComplete={(completed) => {
+          setTask(completed);
+          resource.reload();
+        }} />
       )}
       {resource.loading && !resource.data && <Loading />}
       {resource.error && (

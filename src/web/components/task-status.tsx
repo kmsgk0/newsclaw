@@ -9,7 +9,7 @@ export function TaskWatch({
   onComplete,
 }: {
   task: Task;
-  onComplete?: () => void;
+  onComplete?: (task: Task) => void;
 }) {
   const [task, setTask] = useState(initial);
   const [error, setError] = useState<Error | null>(null);
@@ -30,7 +30,7 @@ export function TaskWatch({
           if (active) {
             setTask(next);
             if (next.status === "succeeded" || next.status === "failed")
-              complete.current?.();
+              complete.current?.(next);
           }
         })
         .catch((reason) => {

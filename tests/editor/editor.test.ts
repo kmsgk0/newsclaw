@@ -67,6 +67,38 @@ test('EDITOR-02/03 validated answers preserve citations and private conversation
   } finally {await env.cleanup();}
 });
 
+test('EDITOR-02 tool preambles are excluded from published and persisted final answers', async () => {
+  const env = await editorEnvironment();
+  try {
+    env.state.mode = 'tool-preamble';
+    const service = new EditorService(env.ctx);
+    const conversation = (await service.createConversation(env.a, '核对价格'))!;
+    const events: { name: string; data: unknown }[] = [];
+    await service.execute(await service.prepare(env.a, conversation.id, { content: '价格公布了吗？' }), (name, data) => events.push({ name, data }));
+    const answer = (await service.conversation(env.a, conversation.id)).messages.at(-1)!;
+    assert.equal(answer.status, 'completed');
+    assert.match(answer.content, /商业价格尚未公布/);
+    assert.doesNotMatch(answer.content, /99元|N999|临时判断/);
+    assert.deepEqual(events.filter(event => event.name === 'text').map(event => event.data), [{ text: answer.content }]);
+    assert.ok(events.some(event => event.name === 'tool'));
+    assert.ok(!events.some(event => event.name === 'error'));
+  } finally { await env.cleanup(); }
+});
+
+test('OPS-04 editor failures combine known usage across tool rounds without inventing missing counts', async () => {
+  const env = await editorEnvironment();
+  try {
+    env.state.mode = 'tool-failure-usage';
+    const service = new EditorService(env.ctx);
+    const conversation = (await service.createConversation(env.a, '用量回归'))!;
+    await service.execute(await service.prepare(env.a, conversation.id, { content: '核对价格' }), () => {});
+    const answer = (await service.conversation(env.a, conversation.id)).messages.at(-1)!;
+    assert.equal(answer.status, 'failed');
+    const saved = await env.ctx.db.one('SELECT usage FROM messages WHERE id=$1', [answer.id]);
+    assert.deepEqual(saved!.usage, { inputTokens: 15, outputTokens: null, totalTokens: null });
+  } finally { await env.cleanup(); }
+});
+
 test('SKILL-01/03 automatic matching leaves unscoped questions available and explicit skills require materials', async () => {
   const env=await editorEnvironment();
   try {
@@ -237,4 +269,21 @@ test('EDITOR-06 same-day incremental journals retain unique source labels across
     assert.equal(journals[0].content,'第一批 [N1]。\n\n第二批 [ N2 ] 和 [N2,N1]，以及数字来源 [N2]。');
     assert.deepEqual(journals[0].sources,[first,{...second,label:'N2'}]);
   } finally {await env.cleanup();}
+});
+
+test('EDITOR-04/06 material snapshots retain activity order and skip missing reports', async () => {
+  const env = await editorEnvironment();
+  try {
+    const original = await env.ctx.db.one<{ source_id: string }>('SELECT source_id FROM news WHERE id=$1', [env.newsId]);
+    const second = await env.ctx.db.one<{ id: string }>("INSERT INTO news(source_id,url,title,published_at,content,content_scope,content_hash,language,domain) VALUES($1,'https://example.com/second','第二篇',now(),'第二篇正文','full','snapshot-second','zh','科技综合') RETURNING id", [original!.source_id]);
+    const missing = randomUUID();
+    await env.ctx.db.query("INSERT INTO activities(user_id,kind,data) VALUES($1,'question',$2)", [env.a.id, JSON.stringify({ sourceIds: [second!.id, missing, env.newsId, second!.id] })]);
+    const journal = await prepareJournalInput(env.ctx, env.a.id, businessDate());
+    assert.deepEqual(journal.snapshot.news.map(news => news.id), [second!.id, env.newsId]);
+    assert.equal(journal.snapshot.news[0].content, '第二篇正文');
+    const daily = await preparePersonalDailyInput(env.ctx, env.a.id, businessDate());
+    assert.deepEqual(new Set(daily.snapshot.news.map(news => news.id)), new Set([env.newsId, second!.id]));
+    assert.equal(daily.snapshot.profile.userId, env.a.id);
+    assert.equal((await prepareJournalInput(env.ctx, env.b.id, businessDate())).snapshot.news.length, 0);
+  } finally { await env.cleanup(); }
 });

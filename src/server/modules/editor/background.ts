@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { AppContext } from '../../context.js';
 import type { TaskHandler } from '../../runtime/tasks.js';
 import { notFound, unavailable } from '../../errors.js';
-import { NewsService } from '../news/service.js';
+import { NewsRepository } from '../news/repository.js';
 import type { NewsItem } from '../news/types.js';
 import { readingMaterials, selectLabeledSources, sourceLabelsSchema } from '../news/materials.js';
 import { EditorRepository, type Activity, type EditorProfile, type Memory } from './repository.js';
@@ -31,7 +31,7 @@ const journalSchema = z.object({ content: z.string().min(1), sourceLabels: sourc
 interface DailySnapshot { profile: EditorProfile; memories: Memory[]; news: NewsItem[] }
 interface JournalSnapshot { profile: EditorProfile; activities: Activity[]; news: NewsItem[]; questions: unknown[]; end: string }
 export async function prepareJournalInput(ctx: AppContext, ownerId: string, date: string) {
-  const repository = new EditorRepository(ctx.db), newsService = new NewsService(ctx);
+  const repository = new EditorRepository(ctx.db), newsRepository = new NewsRepository(ctx.db);
   const profile = await repository.profile(ownerId); if (!profile) throw notFound();
   const end = (await repository.activityEnd(ownerId))?.end ?? '0';
   const activities = await repository.activities(ownerId, profile.activityCursor, end);
@@ -41,20 +41,17 @@ export async function prepareJournalInput(ctx: AppContext, ownerId: string, date
     for (const id of z.array(z.string().uuid()).catch([]).parse(activity.data.sourceIds)) newsIds.add(id);
     const messageId = z.string().uuid().safeParse(activity.data.messageId); if (messageId.success) messageIds.push(messageId.data);
   }
-  const news: NewsItem[] = [];
-  for (const id of newsIds) {
-    try { news.push(await newsService.get(id)); } catch (error) {
-      if (!(error instanceof Error && 'status' in error && error.status === 404)) throw error;
-    }
-  }
+  const news = await newsRepository.byIds([...newsIds]);
   const snapshot: JournalSnapshot = { profile, activities, news, questions: await repository.questionActivities(ownerId, messageIds), end };
   return { date: z.iso.date().parse(date), activityEnd: end, snapshot, memories: await repository.memories(ownerId) };
 }
 export async function preparePersonalDailyInput(ctx: AppContext, ownerId: string, date: string) {
-  const repository = new EditorRepository(ctx.db), newsService = new NewsService(ctx);
+  const repository = new EditorRepository(ctx.db), newsRepository = new NewsRepository(ctx.db);
   const profile = await repository.profile(ownerId); if (!profile) throw notFound();
   const records = await repository.dailyNews(z.iso.date().parse(date));
-  const snapshot: DailySnapshot = { profile, memories: await repository.memories(ownerId), news: await Promise.all(records.map(row => newsService.get(row.id))) };
+  const news = await newsRepository.byIds(records.map(row => row.id));
+  if (news.length !== records.length) throw notFound();
+  const snapshot: DailySnapshot = { profile, memories: await repository.memories(ownerId), news };
   return { date, snapshot };
 }
 export function createEditorHandlers(ctx: AppContext): { daily: TaskHandler; journal: TaskHandler } {

@@ -1,0 +1,5 @@
+import { z } from 'zod';
+export const auditQuery = z.object({ requestId: z.string().uuid().optional(), actorId: z.string().uuid().optional(), status: z.coerce.number().int().min(100).max(599).optional(), from: z.string().datetime({ offset: true }).optional(), to: z.string().datetime({ offset: true }).optional(), limit: z.coerce.number().int().min(1).max(100).default(50), offset: z.coerce.number().int().min(0).max(10000).default(0) }).strict();
+export const skillAuditQuery = z.object({ actorId: z.string().uuid().optional(), skillId: z.string().uuid().optional(), requestId: z.string().regex(/^[a-zA-Z0-9_-]{1,128}$/).optional(), from: z.string().datetime({ offset: true }).optional(), to: z.string().datetime({ offset: true }).optional(), limit: z.coerce.number().int().min(1).max(100).default(50), offset: z.coerce.number().int().min(0).max(10000).default(0) }).strict();
+export type RequestAuditFilters = z.infer<typeof auditQuery>;
+export type SkillAuditFilters = z.infer<typeof skillAuditQuery>;

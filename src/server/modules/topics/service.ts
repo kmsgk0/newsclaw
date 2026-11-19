@@ -13,7 +13,14 @@ export const artifactSchema=z.object({title:z.string().trim().min(1).max(200),ki
 export class TopicsService {
   readonly repo:TopicsRepository;
   constructor(private readonly ctx:AppContext){this.repo=new TopicsRepository(ctx.db);}
-  async detail(id:string,actor:Actor){await this.repo.get(id,actor.id);await this.repo.refresh(id,actor.id);const [topic,news,notes,artifacts,following]=await Promise.all([this.repo.get(id,actor.id),this.repo.news(id,actor.id),this.repo.notes(id,actor.id),this.repo.artifacts(id,actor.id),this.repo.following(actor.id,'topic',id)]);return {...topic,news,notes,artifacts,following};}
+  async detail(id:string,actor:Actor) {
+    await this.repo.refresh(id,actor.id);
+    const topic = await this.repo.get(id,actor.id);
+    const [contents,following] = await Promise.all([
+      this.repo.contents(id,actor.id), this.repo.following(actor.id,'topic',id),
+    ]);
+    return {...topic,...contents,following};
+  }
   async save(id:string,actor:Actor,value:unknown){
     await this.repo.get(id,actor.id);let input=artifactSchema.parse(value);const sourceIds=[...new Set(input.sourceIds)];
     let sources;

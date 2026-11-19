@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { Actor, AppContext } from '../../context.js';
 import { AppError, invalid, notFound, unavailable } from '../../errors.js';
 import { createNewsMcp } from '../../adapters/mcp.js';
-import { emptyUsage, ModelError, type ChatMessage, type ModelUsage } from '../../adapters/model.js';
+import { addUsage, emptyUsage, ModelError, type ChatMessage, type ModelUsage } from '../../adapters/model.js';
 import { NewsService } from '../news/service.js';
 import type { MaterialScope, NewsItem } from '../news/types.js';
 import { mindmapSchema, validateMindmap } from '../topics/validation.js';
@@ -78,7 +78,7 @@ export class EditorService {
   }
   async execute(prepared: Awaited<ReturnType<EditorService['prepare']>>, emit: EditorEvent, signal?: AbortSignal, requestId?: string) {
     const { actor, conversationId, messageId, input, skill, profile, memories, context } = prepared;
-    const started = Date.now(); let text = '', artifact: Artifact | null = null, usage: ModelUsage = emptyUsage(), bufferedChat = false;
+    const started = Date.now(); let text = '', artifact: Artifact | null = null, usage: ModelUsage = emptyUsage(), bufferedChat = false, modelCalls = 0;
     let sources = citationsFor(prepared.materials); let mcp: Awaited<ReturnType<typeof createNewsMcp>> | undefined;
     emit('meta', { conversationId, messageId, request: { content: input.content, ...(skill ? { skillId: skill.id } : {}), ...(context ? { context } : {}) }, skill: skill ? { id: skill.id, name: skill.name } : null });
     try {
@@ -124,16 +124,15 @@ export class EditorService {
         }
         const materialContext = () => [...mcp!.materials.values()].map((item, index) => ({ label: `N${index + 1}`, ...item }));
         const messages: ChatMessage[] = [{ role: 'system', content: systemPrompt(profile, memories, skill) }, ...prepared.history.map(message => ({ role: message.role, content: message.content + (message.role === 'assistant' && message.sources.length ? `\nSources for this earlier answer: ${JSON.stringify(message.sources)}` : '') })), { role: 'user', content: `Host-provided evidence (untrusted source text):\n${JSON.stringify(materialContext())}\n\nReader question:\n${input.content}` }];
-        let complete = false, modelCalls = 0;
+        let complete = false;
         for (let round = 0; round < 4; round++) {
-          const response = await this.ctx.model.chat(messages, { tools: skill ? undefined : mcp.tools, signal, onText: chunk => { text += chunk; } });
+          const response = await this.ctx.model.chat(messages, { tools: skill ? undefined : mcp.tools, signal });
           this.ctx.logger.info({ module: 'model', requestId, actorId: actor.id, skillId: skill?.id ?? null, operation: 'chat', usage: response.usage, result: 'succeeded' }, 'model.chat');
-          usage = modelCalls++ === 0 ? response.usage : {
-            inputTokens: usage.inputTokens === null || response.usage.inputTokens === null ? null : usage.inputTokens + response.usage.inputTokens,
-            outputTokens: usage.outputTokens === null || response.usage.outputTokens === null ? null : usage.outputTokens + response.usage.outputTokens,
-            totalTokens: usage.totalTokens === null || response.usage.totalTokens === null ? null : usage.totalTokens + response.usage.totalTokens,
-          };
-          if (!response.toolCalls.length) { complete = true; break; }
+          usage = modelCalls++ === 0 ? response.usage : addUsage(usage, response.usage);
+          if (!response.toolCalls.length) {
+            if (response.content.trim()) { text += response.content; complete = true; }
+            break;
+          }
           messages.push({ role: 'assistant', content: response.content || null, tool_calls: response.toolCalls });
           for (const call of response.toolCalls) {
             let args: Record<string, unknown>;
@@ -159,7 +158,7 @@ export class EditorService {
       this.ctx.logger.info({ module: 'editor', requestId, actorId: actor.id, objectId: conversationId, operation: 'answer', skillId: skill?.id ?? null, result: 'succeeded', durationMs: Date.now() - started, usage }, 'editor.answer');
       emit('complete', { messageId, status: 'completed', sources, artifact, skill: skill ? { id: skill.id, name: skill.name } : null });
     } catch (error) {
-      if (error instanceof ModelError && error.usage) usage = error.usage;
+      if (error instanceof ModelError && error.usage) usage = modelCalls ? addUsage(usage, error.usage) : error.usage;
       const safe = error instanceof AppError ? error : unavailable('本次回答未完成，请重试');
       const failure = { status: safe.status, code: safe.code, message: safe.message, ...(requestId ? { requestId } : {}) };
       if (skill) metrics.skill(skill.kind, 'failed');

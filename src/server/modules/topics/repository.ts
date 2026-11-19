@@ -29,14 +29,21 @@ export class TopicsRepository {
     await this.refresh(String(r!.id),userId);return this.get(String(r!.id),userId);
   }
   async update(id:string,userId:string,input:{name?:string;description?:string;filter?:TopicFilter}) {
-    const old=await this.get(id,userId);
-    if(input.filter?.eventId&&!await this.db.one('SELECT id FROM events WHERE id=$1',[input.filter.eventId]))throw notFound();
-    await this.db.query('UPDATE topics SET name=$3,description=$4,filter=$5,updated_at=now() WHERE id=$1 AND user_id=$2',[id,userId,input.name??old.name,input.description??old.description,JSON.stringify(input.filter??old.filter)]);
-    await this.refresh(id,userId);return this.get(id,userId);
+    return this.db.tx(async tx => {
+      const saved = await tx.one('UPDATE topics SET name=COALESCE($3,name),description=COALESCE($4,description),filter=COALESCE($5::jsonb,filter),updated_at=now() WHERE id=$1 AND user_id=$2 RETURNING id', [id,userId,input.name??null,input.description??null,input.filter===undefined?null:JSON.stringify(input.filter)]);
+      if (!saved) throw notFound();
+      if (input.filter?.eventId && !await tx.one('SELECT id FROM events WHERE id=$1', [input.filter.eventId])) throw notFound();
+      const repository = new TopicsRepository(tx);
+      await repository.refresh(id,userId);
+      return repository.get(id,userId);
+    });
   }
   async remove(id:string,userId:string) {return this.db.tx(async tx=>{const row=await tx.one('DELETE FROM topics WHERE id=$1 AND user_id=$2 RETURNING id',[id,userId]);if(!row)throw notFound();await tx.query("DELETE FROM follows WHERE user_id=$1 AND kind='topic' AND target_id=$2",[userId,id]);return {deleted:true};});}
   async news(id:string,userId:string) {
     await this.get(id,userId);
+    return this.readNews(id,userId);
+  }
+  private async readNews(id:string,userId:string) {
     return (await this.db.query(`SELECT n.*,s.name AS source_name,(t.last_viewed_at IS NULL OR tn.added_at>t.last_viewed_at) AS unread FROM topic_news tn JOIN topics t ON t.id=tn.topic_id JOIN news n ON n.id=tn.news_id JOIN news_sources s ON s.id=n.source_id WHERE t.id=$1 AND t.user_id=$2 ORDER BY n.published_at DESC NULLS LAST,n.id`,[id,userId])).map(newsDto);
   }
   async addNews(id:string,userId:string,newsId:string) {return this.db.tx(async tx=>{
@@ -55,7 +62,13 @@ export class TopicsRepository {
     });
   }
   async markRead(id:string,userId:string) {const row=await this.db.one('UPDATE topics SET last_viewed_at=now() WHERE id=$1 AND user_id=$2 RETURNING id',[id,userId]);if(!row)throw notFound();return {read:true};}
-  async notes(id:string,userId:string) {await this.get(id,userId);return (await this.db.query('SELECT id,content,created_at,updated_at FROM topic_notes WHERE topic_id=$1 ORDER BY created_at,id',[id])).map(r=>({id:r.id,content:r.content,createdAt:iso(r.created_at),updatedAt:iso(r.updated_at)}));}
+  async notes(id:string,userId:string) {
+    await this.get(id,userId);
+    return this.readNotes(id,userId);
+  }
+  private async readNotes(id:string,userId:string) {
+    return (await this.db.query('SELECT n.id,n.content,n.created_at,n.updated_at FROM topic_notes n JOIN topics t ON t.id=n.topic_id WHERE t.id=$1 AND t.user_id=$2 ORDER BY n.created_at,n.id',[id,userId])).map(r=>({id:r.id,content:r.content,createdAt:iso(r.created_at),updatedAt:iso(r.updated_at)}));
+  }
   async addNote(id:string,userId:string,content:string) {return this.db.tx(async tx=>{if(!await tx.one('SELECT id FROM topics WHERE id=$1 AND user_id=$2 FOR SHARE',[id,userId]))throw notFound();const row=await tx.one('INSERT INTO topic_notes(topic_id,content) VALUES($1,$2) RETURNING id,content,created_at',[id,content]);return {id:row!.id,content:row!.content,createdAt:iso(row!.created_at)};});}
   async updateNote(topicId:string,noteId:string,userId:string,content:string) {
     const row = await this.db.one(`UPDATE topic_notes n SET content=$4,updated_at=now() FROM topics t WHERE n.id=$1 AND n.topic_id=$2 AND t.id=n.topic_id AND t.user_id=$3 RETURNING n.id,n.content,n.created_at,n.updated_at`,[noteId,topicId,userId,content]);
@@ -69,7 +82,16 @@ export class TopicsRepository {
   }
   async artifacts(id:string,userId:string) {
     await this.get(id,userId);
-    return (await this.db.query(`SELECT a.*,coalesce((SELECT jsonb_agg(jsonb_build_object('token',s.token,'url','/shares/'||s.token,'revokedAt',s.revoked_at) ORDER BY s.created_at DESC) FROM shares s WHERE s.artifact_id=a.id),'[]'::jsonb) AS shares FROM artifacts a WHERE a.topic_id=$1 AND a.user_id=$2 ORDER BY a.created_at DESC,a.id`,[id,userId])).map(r=>({id:r.id,title:r.title,kind:r.kind,content:r.content,structure:r.structure,skillId:r.skill_id,sources:r.sources,shares:r.shares,createdAt:iso(r.created_at)}));
+    return this.readArtifacts(id,userId);
+  }
+  private async readArtifacts(id:string,userId:string) {
+    return (await this.db.query(`SELECT a.*,coalesce((SELECT jsonb_agg(jsonb_build_object('token',s.token,'url','/shares/'||s.token,'revokedAt',s.revoked_at) ORDER BY s.created_at DESC) FROM shares s WHERE s.artifact_id=a.id),'[]'::jsonb) AS shares FROM artifacts a JOIN topics t ON t.id=a.topic_id AND t.user_id=$2 WHERE a.topic_id=$1 AND a.user_id=$2 ORDER BY a.created_at DESC,a.id`,[id,userId])).map(r=>({id:r.id,title:r.title,kind:r.kind,content:r.content,structure:r.structure,skillId:r.skill_id,sources:r.sources,shares:r.shares,createdAt:iso(r.created_at)}));
+  }
+  async contents(id:string,userId:string) {
+    const [news,notes,artifacts] = await Promise.all([
+      this.readNews(id,userId), this.readNotes(id,userId), this.readArtifacts(id,userId),
+    ]);
+    return {news,notes,artifacts};
   }
   async saveArtifact(id:string,userId:string,input:ArtifactInput,sources:NewsItem[]) {
     return this.db.tx(async tx=>{

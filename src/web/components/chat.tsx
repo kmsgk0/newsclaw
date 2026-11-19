@@ -2,65 +2,20 @@ import {
   ArrowDown,
   ArrowUp,
   BookOpen,
-  Check,
-  Copy,
   LoaderCircle,
   Plus,
-  RefreshCw,
   SlidersHorizontal,
   Square,
   X,
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router";
-import { api, ApiError, authenticatedFetch, useOperation, useResource } from "../api";
-import { useAuth } from "../auth";
-import type {
-  Artifact,
-  Citation,
-  Conversation,
-  Editor,
-  MaterialContext,
-  Message,
-  PersonalSkill,
-} from "../types";
-import { ArtifactView } from "./artifact";
-import { Prose, Sources } from "./content";
+import type { MaterialContext } from "../types";
 import { MaterialName, MaterialPicker } from "./material-picker";
-import { ErrorState, Feedback, Loading, Modal } from "./ui";
-
-function CopyMessage({ content }: { content: string }) {
-  const operation = useOperation();
-  const [copied, setCopied] = useState(false);
-  return (
-    <>
-      <button
-        className="button quiet small"
-        onClick={() =>
-          operation.run(
-            () => navigator.clipboard.writeText(content),
-            () => setCopied(true),
-          )
-        }
-      >
-        {copied ? <Check size={13} /> : <Copy size={13} />}
-        {copied ? "已复制" : "复制"}
-      </button>
-      <Feedback operation={operation} />
-    </>
-  );
-}
-
-interface ChatProps {
-  context?: MaterialContext;
-  conversationId?: string;
-  initialSkillId?: string;
-  onConversation?: (id: string) => void;
-  onContextChange?: (context?: MaterialContext) => void;
-  onArtifactSaved?: () => void;
-  compact?: boolean;
-  chooseMaterial?: boolean;
-}
+import { ErrorState, Loading, Modal } from "./ui";
+import { ChatMessages } from "./chat/messages";
+import { useChatSession } from "./chat/use-chat-session";
+import type { ChatProps } from "./chat/types";
 
 function answerScrollTop(container: HTMLElement) {
   const latest = container.querySelector<HTMLElement>(
@@ -92,70 +47,22 @@ export function ChatPanel({
   compact = false,
   chooseMaterial = false,
 }: ChatProps) {
-  const auth = useAuth();
-  const [activeId, setActiveId] = useState(conversationId);
-  const activeIdRef = useRef(conversationId);
-  const [localContext, setLocalContext] = useState(context);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [text, setText] = useState("");
-  const [skillId, setSkillId] = useState(initialSkillId);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [tool, setTool] = useState("");
   const [choosing, setChoosing] = useState(chooseMaterial);
   const [following, setFollowing] = useState(true);
-  const profile = useResource<Editor>(auth.user ? "/editor" : null);
-  const conversation = useResource<Conversation>(
-    activeId ? `/conversations/${activeId}` : null,
-  );
-  const skills = useResource<{ items: PersonalSkill[] }>(
-    auth.user ? "/skills/mine" : null,
-  );
-  const controller = useRef<AbortController | null>(null);
-  const generation = useRef(0);
   const scroll = useRef<HTMLDivElement>(null);
   const followScroll = useRef(true);
-  const effectiveContext =
-    localContext ?? conversation.data?.context ?? undefined;
-  const contextKind = context?.kind;
-  const contextId = context?.id;
-  const enabled = skills.data?.items.filter((skill) => skill.enabled) ?? [];
-  const previousProps = useRef({ conversationId, contextKind, contextId });
-  useEffect(() => {
-    const previous = previousProps.current;
-    previousProps.current = { conversationId, contextKind, contextId };
-    const conversationChanged = previous.conversationId !== conversationId;
-    const materialChanged =
-      previous.contextKind !== contextKind || previous.contextId !== contextId;
-    if (!conversationChanged && !materialChanged) return;
-    if (conversationChanged && conversationId === activeIdRef.current) return;
+  const onReset = useCallback(() => {
     setChoosing(false);
-    generation.current++;
-    controller.current?.abort();
-    controller.current = null;
-    activeIdRef.current = conversationId;
-    setActiveId(conversationId);
-    setMessages([]);
-    setError(null);
-    setBusy(false);
-    setTool("");
-    setText("");
-    setLocalContext(
-      contextKind ? { kind: contextKind, id: contextId } : undefined,
-    );
     followScroll.current = true;
-  }, [conversationId, contextKind, contextId]);
-  useEffect(() => {
-    if (conversation.data?.id === activeIdRef.current && conversation.data?.messages && !controller.current)
-      setMessages(conversation.data.messages);
-  }, [conversation.data]);
-  useEffect(
-    () => () => {
-      generation.current++;
-      controller.current?.abort();
-    },
-    [],
-  );
+  }, []);
+  const onSendStart = useCallback(() => {
+    followScroll.current = true;
+    setFollowing(true);
+  }, []);
+  const { auth, activeId, effectiveContext, localContext, messages, text, setText, skillId, setSkillId,
+    busy, error, tool, enabled, profile, conversation, skills, reset, send, stop } = useChatSession({
+    context, conversationId, initialSkillId, onConversation, onContextChange, onReset, onSendStart,
+  });
   useLayoutEffect(() => {
     if (followScroll.current && scroll.current)
       scroll.current.scrollTo({
@@ -163,245 +70,6 @@ export function ChatPanel({
         behavior: "instant",
       });
   }, [messages, tool]);
-  function reset(next?: MaterialContext) {
-    setChoosing(false);
-    if (onContextChange) {
-      onContextChange(next);
-      return;
-    }
-    generation.current++;
-    controller.current?.abort();
-    controller.current = null;
-    activeIdRef.current = undefined;
-    setActiveId(undefined);
-    setMessages([]);
-    setError(null);
-    setBusy(false);
-    setText("");
-    setLocalContext(next);
-    setTool("");
-    followScroll.current = true;
-  }
-  async function send(question: string, retry?: Message) {
-    if (!question.trim() || controller.current) return;
-    const token = ++generation.current;
-    const abort = new AbortController();
-    controller.current = abort;
-    setBusy(true);
-    setError(null);
-    setTool("");
-    followScroll.current = true;
-    setFollowing(true);
-    const optimisticId = retry?.id ?? crypto.randomUUID();
-    let messageId = optimisticId;
-    let received = false;
-    let finished = false;
-    const current = () => token === generation.current;
-    const update = (fn: (message: Message) => Message) => {
-      if (current())
-        setMessages((items) =>
-          items.map((message) =>
-            message.id === messageId || message.id === optimisticId
-              ? fn(message)
-              : message,
-          ),
-        );
-    };
-    try {
-      let id = activeIdRef.current;
-      if (!id) {
-        const created = await api<Conversation>("/conversations", "POST", {
-          title: question.slice(0, 60),
-          ...(effectiveContext ? { context: effectiveContext } : {}),
-        });
-        if (!current()) return;
-        id = created.id;
-        activeIdRef.current = id;
-        setActiveId(id);
-        onConversation?.(id);
-      }
-      const body = retry
-        ? { content: question, retryMessageId: retry.id }
-        : {
-            content: question,
-            ...(skillId ? { skillId } : {}),
-            ...(effectiveContext ? { context: effectiveContext } : {}),
-          };
-      const response = await authenticatedFetch(
-        `/conversations/${id}/messages`,
-        { method: "POST", body: JSON.stringify(body), signal: abort.signal },
-      );
-      if (!response.ok) {
-        const payload = await response.json();
-        throw new ApiError(
-          response.status,
-          payload.code,
-          payload.message,
-          payload.requestId,
-        );
-      }
-      if (!response.body) throw new Error("没有收到回答内容，请重试。");
-      received = true;
-      if (current())
-        setMessages((items) =>
-          retry
-            ? items.map((item) =>
-                item.id === retry.id
-                  ? {
-                      ...item,
-                      content: "",
-                      artifact: undefined,
-                      sources: [],
-                      status: "pending",
-                      error: null,
-                    }
-                  : item,
-              )
-            : [
-                ...items,
-                {
-                  id: crypto.randomUUID(),
-                  role: "user",
-                  content: question,
-                  status: "completed",
-                  sources: [],
-                  createdAt: new Date().toISOString(),
-                },
-                {
-                  id: optimisticId,
-                  role: "assistant",
-                  content: "",
-                  status: "pending",
-                  sources: [],
-                  createdAt: new Date().toISOString(),
-                  request: {
-                    content: question,
-                    skillId,
-                    context: effectiveContext,
-                  },
-                },
-              ],
-        );
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      function accept(block: string) {
-        if (!current()) return;
-        const lines = block.split("\n");
-        const name =
-          lines
-            .find((line) => line.startsWith("event:"))
-            ?.slice(6)
-            .trim() ?? "message";
-        const raw = lines
-          .filter((line) => line.startsWith("data:"))
-          .map((line) => line.slice(5).trimStart())
-          .join("\n");
-        if (!raw) return;
-        const payload = JSON.parse(raw);
-        if (name === "meta") {
-          messageId = payload.messageId;
-          update((message) => ({
-            ...message,
-            id: messageId,
-            skillId: payload.skill?.id,
-            skillName: payload.skill?.name,
-          }));
-        } else if (name === "tool")
-          setTool(
-            payload.status === "completed"
-              ? ""
-              : /search/.test(payload.name)
-                ? "正在检索报道"
-                : "正在读取材料",
-          );
-        else if (name === "text")
-          update((message) => ({
-            ...message,
-            content: message.content + payload.text,
-          }));
-        else if (name === "sources")
-          update((message) => ({
-            ...message,
-            sources: payload.sources as Citation[],
-          }));
-        else if (name === "artifact")
-          update((message) => ({
-            ...message,
-            artifact: payload.artifact as Artifact,
-          }));
-        else if (name === "complete") {
-          finished = true;
-          update((message) => ({
-            ...message,
-            status: "completed",
-            error: null,
-            sources: payload.sources ?? message.sources,
-            artifact: payload.artifact ?? message.artifact,
-            skillName: payload.skill?.name ?? message.skillName,
-          }));
-        } else if (name === "error") {
-          finished = true;
-          update((message) => ({ ...message, status: "failed" }));
-          throw new ApiError(
-            payload.status ?? 500,
-            payload.code,
-            payload.message,
-            payload.requestId,
-          );
-        }
-      }
-      while (true) {
-        const chunk = await reader.read();
-        buffer += decoder
-          .decode(chunk.value, { stream: !chunk.done })
-          .replaceAll("\r\n", "\n");
-        let index;
-        while ((index = buffer.indexOf("\n\n")) >= 0) {
-          accept(buffer.slice(0, index));
-          buffer = buffer.slice(index + 2);
-        }
-        if (chunk.done) break;
-      }
-      if (buffer.trim()) accept(buffer);
-      if (!finished)
-        throw new Error("连接中断，回答尚未完成。可以重试这条问题。");
-      if (current()) setText((value) => (value === question ? "" : value));
-    } catch (reason) {
-      if (current()) {
-        const failure = abort.signal.aborted
-          ? new Error("回答已停止，已收到的内容保留。")
-          : reason instanceof Error
-            ? reason
-            : new Error("本次回答未完成");
-        if (received) {
-          setError(null);
-          update((message) => ({
-            ...message,
-            status: "failed",
-            error: {
-              status: failure instanceof ApiError ? failure.status : 503,
-              code:
-                failure instanceof ApiError
-                  ? failure.code
-                  : "DEPENDENCY_UNAVAILABLE",
-              message: failure.message,
-              ...(failure instanceof ApiError && failure.requestId
-                ? { requestId: failure.requestId }
-                : {}),
-            },
-          }));
-        } else setError(failure);
-      }
-    } finally {
-      if (current()) {
-        setBusy(false);
-        setTool("");
-        controller.current = null;
-        conversation.reload();
-      }
-    }
-  }
   const submit = (event: FormEvent) => {
     event.preventDefault();
     void send(text);
@@ -509,96 +177,10 @@ export function ChatPanel({
                 )}
               </div>
             )}
-            {messages.map((message, index) => (
-              <article
-                key={message.id}
-                className={`chat-message ${message.role}`}
-              >
-                <div className="message-label">
-                  {message.role === "user"
-                    ? "你"
-                    : (profile.data?.name ?? "编辑")}
-                  {message.status === "failed" && (
-                    <span className="tag red">未完成</span>
-                  )}
-                  {message.skillId && (
-                    <span className="tag">
-                      {message.skillName ??
-                        skills.data?.items.find(
-                          (skill) => skill.id === message.skillId,
-                        )?.name ??
-                        "阅读技能"}
-                    </span>
-                  )}
-                </div>
-                <div className="message-answer">
-                  {message.artifact ? (
-                    <ArtifactView
-                      artifact={message.artifact}
-                      sources={message.sources}
-                      save={message.status === "completed"}
-                      onSaved={onArtifactSaved}
-                      topicId={
-                        effectiveContext?.kind === "topic"
-                          ? effectiveContext.id
-                          : undefined
-                      }
-                    />
-                  ) : (
-                    <Prose sources={message.sources}>{message.content}</Prose>
-                  )}
-                  {message.status === "pending" && !message.content && (
-                    <Loading label="正在组织回答" />
-                  )}
-                  {message.status === "failed" && (
-                    <ErrorState
-                      error={
-                        message.error
-                          ? new ApiError(
-                              message.error.status,
-                              message.error.code,
-                              message.error.message,
-                              message.error.requestId,
-                            )
-                          : new Error("这次回答未完成，可以使用原问题重试。")
-                      }
-                    />
-                  )}
-                </div>
-                <Sources
-                  sources={message.sources}
-                  content={message.artifact?.content ?? message.content}
-                  structure={message.artifact?.structure}
-                />
-                {message.role === "assistant" && (
-                  <div className="message-actions">
-                    {message.content && (
-                      <CopyMessage content={message.content} />
-                    )}
-                    {message.status === "failed" && (
-                      <button
-                        className="button secondary small"
-                        disabled={busy}
-                        onClick={() =>
-                          void send(
-                            message.request?.content ??
-                              messages
-                                .slice(0, index)
-                                .findLast((item) => item.role === "user")
-                                ?.content ??
-                              text,
-                            message,
-                          )
-                        }
-                      >
-                        <RefreshCw size={13} />
-                        重试回答
-                      </button>
-                    )}
-                  </div>
-                )}
-              </article>
-            ))}
+            <ChatMessages messages={messages} editorName={profile.data?.name}
+              skills={skills.data?.items ?? []} busy={busy} effectiveContext={effectiveContext}
+              text={text} onRetry={(question, message) => void send(question, message)}
+              onArtifactSaved={onArtifactSaved} />
             {tool && (
               <p className="tool-status">
                 <LoaderCircle size={14} className="spin" />
@@ -693,7 +275,7 @@ export function ChatPanel({
                 <button
                   type="button"
                   className="button secondary small"
-                  onClick={() => controller.current?.abort()}
+                  onClick={stop}
                 >
                   <Square size={13} />
                   停止回答

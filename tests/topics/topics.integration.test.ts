@@ -75,3 +75,55 @@ test('TOPIC-03/05 heat, timeline and graph preserve source evidence and current 
     await f.ctx.db.query('ALTER TABLE relations RENAME TO relations_unavailable');await assert.rejects(f.topics.repo.graph([f.first]));await f.ctx.db.query('ALTER TABLE relations_unavailable RENAME TO relations');
   }finally{await f.cleanup();}
 });
+
+test('TOPIC-01 concurrent partial updates preserve both fields and reject another account', async () => {
+  const f = await fixture();
+  try {
+    const topic = await f.topics.repo.create(f.a.id, { name: '原名称', description: '原描述', filter: { eventId: f.eventId } });
+    let unlock!: () => void;
+    let ready!: () => void;
+    const gate = new Promise<void>(resolve => { unlock = resolve; });
+    const locked = new Promise<void>(resolve => { ready = resolve; });
+    const holder = f.ctx.db.tx(async tx => {
+      await tx.query('SELECT id FROM topics WHERE id=$1 FOR UPDATE', [topic.id]);
+      ready(); await gate;
+    });
+    await locked;
+    const updates = Promise.all([
+      f.topics.repo.update(topic.id, f.a.id, { name: '新名称' }),
+      f.topics.repo.update(topic.id, f.a.id, { description: '新描述' }),
+    ]);
+    try {
+      const deadline = Date.now() + 5000;
+      while (true) {
+        const blocked = await f.ctx.db.one<{ count: number }>("SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE 'UPDATE topics SET%'");
+        if (blocked!.count >= 2) break;
+        if (Date.now() > deadline) throw new Error('Concurrent topic updates did not reach the database lock');
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+    } finally { unlock(); await holder; await updates; }
+    const saved = await f.topics.repo.get(topic.id, f.a.id);
+    assert.equal(saved.name, '新名称');
+    assert.equal(saved.description, '新描述');
+    assert.deepEqual(saved.filter, topic.filter);
+    await assert.rejects(f.topics.repo.update(topic.id, f.b.id, { name: '越权' }), { code: 'NOT_FOUND' });
+    assert.deepEqual(await f.topics.repo.get(topic.id, f.a.id), saved);
+  } finally { await f.cleanup(); }
+});
+
+test('TOPIC-01 detail returns refreshed owner contents and child queries cannot expose another account', async () => {
+  const f = await fixture();
+  try {
+    const topic = await f.topics.repo.create(f.a.id, { name: '详情', description: '', filter: { eventId: f.eventId } });
+    await f.topics.repo.addNote(topic.id, f.a.id, '私人笔记');
+    await f.topics.save(topic.id, f.a, { title: '简报', kind: 'brief', content: '已保存正文', sourceIds: [f.first] });
+    const detail = await f.topics.detail(topic.id, f.a);
+    assert.equal(detail.newsCount, 1);
+    assert.deepEqual(detail.news.map(news => news.id), [f.first]);
+    assert.equal(detail.notes[0].content, '私人笔记');
+    assert.equal(detail.artifacts[0].content, '已保存正文');
+    assert.deepEqual(await f.topics.repo.contents(topic.id, f.b.id), { news: [], notes: [], artifacts: [] });
+    await assert.rejects(f.topics.detail(topic.id, f.b), { code: 'NOT_FOUND' });
+    await assert.rejects(f.topics.detail(randomUUID(), f.a), { code: 'NOT_FOUND' });
+  } finally { await f.cleanup(); }
+});
