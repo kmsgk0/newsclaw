@@ -8,12 +8,18 @@
 | --- | --- |
 | `GET /api/v1/editor` | 读取名字、头像、解读风格和兴趣 |
 | `PATCH /api/v1/editor` | 修改本人编辑设置 |
+| `GET /api/v1/editor/generation` | 读取本人自动生成设置与当日后台用量 |
+| `PATCH /api/v1/editor/generation` | 修改频率、开始小时、每日上限或恢复暂停 |
 | `GET /api/v1/conversations` | 列出本人会话 |
 | `POST /api/v1/conversations` | 创建会话，可传入当前材料范围 |
 | `GET /api/v1/conversations/:id` | 恢复消息、来源、技能和结果状态 |
 | `PATCH /api/v1/conversations/:id` | 重命名本人会话 |
 | `DELETE /api/v1/conversations/:id` | 删除本人会话与其消息 |
 | `POST /api/v1/conversations/:id/messages` | 发送问题，流式接收回答 |
+| `GET /api/v1/messages/:id/feedback` | 读取本人回答的最新反馈，无反馈返回 null |
+| `POST /api/v1/messages/:id/feedback` | 保存或替换本人已完成回答的反馈 |
+| `DELETE /api/v1/messages/:id/feedback` | 撤回本人反馈 |
+| `GET /api/v1/admin/feedback` | 管理员读取类别计数与公开来源聚合 |
 | `GET /api/v1/memories` | 列出有效的长期记忆 |
 | `POST /api/v1/memories` | 按主题键保存明确偏好 |
 | `GET /api/v1/memories/:id` | 读取一条本人记忆 |
@@ -85,7 +91,17 @@
 
 简报、对比与导图可保存为专题成果。成果结构包含 `title`、`kind`、`content`、`skillId`、`sourceIds` 和对应助手 `messageId`，服务端保存生成时的报道快照与来源编号。专题保存使用本人已完成消息中的成果，新闻后续更新不替换这份材料。导图额外包含 `structure`，其节点含 `label`、非空 `sourceIds` 和可选 `children`。每个节点的来源必须属于本次实际材料。
 
+## 回答反馈
+
+`category` 为 `helpful`、`inaccurate` 或 `unsupported_citation`，可选 `note` 最多 1000 字。引用问题必须传入该回答中的 `sourceLabel`，其他类别不接受引用字段。仅本人已完成的助手回答可写入，待完成、失败或用户消息返回 `409`。每条回答只保留一份反馈，会话恢复包含本人反馈；删除会话同时删除反馈。
+
+管理聚合仅返回类别计数，以及最多 50 篇被反馈引用问题的公开报道标题、链接、标识和计数，不返回私人问答、备注或反馈人。备注不加入模型上下文。具体操作见[使用说明](../usage.md#回答反馈)。
+
 ## 日报、记忆与手记
+
+私人自动生成默认关闭。`mode` 可选 `manual`、`daily`、`updates`，`startHour` 为北京时间 0–23 时，`dailyLimit` 为日报和手记共用的每日 1–20 次上限，默认 8 时和 3 次。每日模式每类成功一次，更新模式在新内容或活动到达时补生成；开始小时之前不调度。并发执行在模型调用前锁定账号设置并预留次数，失败和重试也计次；相同执行标识不重复调用。手动生成独立计数，不受自动次数上限限制。
+
+设置读取同时返回当日自动及手动调用数、已知输入/输出/总 token 和未知总量的调用数，只覆盖后台个人日报和手记。上游明确额度耗尽会暂停自动生成至次日，设置中的 `resume: true` 可主动恢复。
 
 业务日期使用 Asia/Shanghai。日报与手记列表返回内容、可用日期、最新日期和实际生成状态，可区分等待、无材料和失败。日报任务按账号与日期更新一份记录。接收时保存本次材料和偏好快照，重复操作复用原任务。较旧任务的迟到结果不能替换较新成功日报；失败保留原日报。当前按当日最新四十条精选提供候选，编辑根据明确兴趣与记忆选择导读内容；没有兴趣时使用当日精选并提示补充。正文整理报道事实，兴趣关联使用实际偏好和已引用报道中的原文片段；宿主核对片段后生成说明，不能核对的关联使本次生成失败并保留已有日报。
 
