@@ -33,7 +33,7 @@ test('NEWS-06/EDITOR-04/06 digest labels preserve news identity and reject unkno
       assert.deepEqual((await new NewsRepository(env.ctx.db).digests(date)).items,previousPublic);
       assert.equal((await repository.profile(env.a.id))!.activityCursor,'0');
       env.state.mode = 'valid';
-      const generated = await item.handler(task,run);
+      const generated = await item.handler(task,{...run,executionId:randomUUID(),attempt:2});
       const request = env.state.requests.at(-1) as {messages:{content:string}[]};
       const input = JSON.parse(request.messages[1].content);
       const materials = input.materials ?? input.news;
