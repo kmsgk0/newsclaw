@@ -1,5 +1,7 @@
 # 检查与修复记录
 
+2026-11-19 的四项缺陷修复、聊天及查询重构见[代码审查修复与重构](review-fixes.md)。
+
 2026-11-10 的处理结果见[问题修复记录](security-fix-log.md)与[修复评审](review-02.md)。以下保存首次检查版本的结果，包含修复前的红项。
 
 近期隔离验证见[安全门禁红绿对照](gate-red-green.md)、[技能审计回查](audit-recheck.md)、[SEC-08 四步实验](sec08-experiment.md)、[数据库变更](database-change.md)、[干净目录启动检查](boot-reproduce.md)、[流水线状态](pipeline.md)、[监控与告警检查](observability-check.md)、[压测报告](bench.md)和[课程要求对照](../docs/verification/course-08-10.md)。真实用户反馈尚未收集，记录入口见[反馈文件](feedback.md)。
