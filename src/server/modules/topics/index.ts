@@ -33,6 +33,10 @@ export async function registerTopics(app:FastifyInstance,ctx:AppContext){
   app.post('/api/v1/topics/:id/artifacts',{schema:{tags:['成果'],params:json(id),body:json(artifactSchema)}},async(request,reply)=>{const result=await service.save(id.parse(request.params).id,request.actor!,request.body);reply.code(201);return result;});
   app.get('/api/v1/topics/:id/graph',{schema:{tags:['专题'],params:json(id)}},async request=>service.graph(id.parse(request.params).id,request.actor!));
   app.get('/api/v1/artifacts/:id/share-preview',{schema:{tags:['分享'],params:json(id)}},async request=>repo.preview(id.parse(request.params).id,request.actor!.id));
+  app.get('/api/v1/artifacts/:id/export',{config:{rawResponse:true},schema:{tags:['成果'],summary:'导出本人单份成果为 Markdown，最大 1 MiB',params:json(id),response:{200:{type:'string'}}}},async(request,reply)=>{
+    const result=await service.export(id.parse(request.params).id,request.actor!);
+    return reply.type('text/markdown; charset=utf-8').header('content-disposition',`attachment; filename="newsclaw-artifact.md"; filename*=UTF-8''${encodeURIComponent(result.filename)}`).send(result.content);
+  });
   const artifactTitle=z.object({title:z.string().trim().min(1).max(200)}).strict();
   app.patch('/api/v1/artifacts/:id',{schema:{tags:['成果'],summary:'重命名本人阅读成果',params:json(id),body:json(artifactTitle)}},async request=>repo.renameArtifact(id.parse(request.params).id,request.actor!.id,artifactTitle.parse(request.body).title));
   app.delete('/api/v1/artifacts/:id',{schema:{tags:['成果'],summary:'删除本人阅读成果及其分享',params:json(id)}},async request=>repo.removeArtifact(id.parse(request.params).id,request.actor!.id));

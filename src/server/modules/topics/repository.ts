@@ -6,6 +6,7 @@ import type { NewsItem, Graph, GraphEdge, GraphNode } from '../news/types.js';
 import type { GraphExtraction, MindmapNode } from './validation.js';
 import type { Artifact } from '../editor/repository.js';
 import { businessDate } from '../editor/calendar.js';
+import type { ExportArtifact } from './export.js';
 
 export interface TopicFilter { keywords?: string; domain?: string; eventId?: string }
 export interface Topic { id:string; name:string; description:string; filter:TopicFilter; newsCount:number; unreadCount:number; updatedAt:string }
@@ -136,6 +137,10 @@ export class TopicsRepository {
   async preview(artifactId:string,userId:string) {
     const row=await this.db.one('SELECT title,kind,content,structure,sources FROM artifacts WHERE id=$1 AND user_id=$2',[artifactId,userId]);if(!row)throw notFound();
     return {title:row.title,kind:row.kind,content:row.content,structure:row.structure,sources:row.sources};
+  }
+  async exportable(artifactId:string,userId:string) {
+    const row=await this.db.one<ExportArtifact>('SELECT title,kind,content,structure,sources,created_at AS "savedAt" FROM artifacts WHERE id=$1 AND user_id=$2',[artifactId,userId]);
+    if(!row)throw notFound();return row;
   }
   async share(artifactId:string,userId:string) {return this.db.tx(async tx=>{
     const snapshot=await new TopicsRepository(tx).preview(artifactId,userId);const token=randomBytes(24).toString('base64url');
