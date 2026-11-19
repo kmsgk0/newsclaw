@@ -21,6 +21,10 @@ export class TopicsService {
     ]);
     return {...topic,...contents,following};
   }
+  async updates(id:string,actor:Actor) {
+    await this.repo.refresh(id,actor.id);
+    return this.repo.updates(id,actor.id);
+  }
   async save(id:string,actor:Actor,value:unknown){
     await this.repo.get(id,actor.id);let input=artifactSchema.parse(value);const sourceIds=[...new Set(input.sourceIds)];
     let sources;

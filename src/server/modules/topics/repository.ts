@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { Db } from '../../db.js';
-import { notFound } from '../../errors.js';
+import { invalid, notFound } from '../../errors.js';
 import { newsDto, newsSelect, NewsRepository } from '../news/repository.js';
 import type { NewsItem, Graph, GraphEdge, GraphNode } from '../news/types.js';
 import type { GraphExtraction, MindmapNode } from './validation.js';
@@ -61,7 +61,26 @@ export class TopicsRepository {
       return {removed:true};
     });
   }
-  async markRead(id:string,userId:string) {const row=await this.db.one('UPDATE topics SET last_viewed_at=now() WHERE id=$1 AND user_id=$2 RETURNING id',[id,userId]);if(!row)throw notFound();return {read:true};}
+  async markRead(id:string,userId:string,through?:string) {
+    if (through && (!Number.isFinite(Date.parse(through)) || Date.parse(through)>Date.now())) throw invalid('已读截止时间无效');
+    const row=await this.db.one("UPDATE topics SET last_viewed_at=GREATEST(COALESCE(last_viewed_at,'-infinity'::timestamptz),COALESCE($3::timestamptz,now())) WHERE id=$1 AND user_id=$2 RETURNING id",[id,userId,through??null]);
+    if(!row)throw notFound();return {read:true};
+  }
+  async updates(id:string,userId:string) {
+    const window=await this.db.one<{since:string|null;asOf:string}>(`SELECT to_char(last_viewed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS since,to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "asOf" FROM topics WHERE id=$1 AND user_id=$2`,[id,userId]);
+    if(!window)throw notFound();
+    const values=[id,userId,window.since,window.asOf];
+    const filter='t.id=$1 AND t.user_id=$2 AND ($3::timestamptz IS NULL OR tn.added_at>$3::timestamptz) AND tn.added_at<=$4::timestamptz';
+    const rows=await this.db.query(`SELECT n.id,n.title,n.source_id,n.url,n.published_at,n.content_scope,n.summary,n.language,n.domain,n.event_id,n.created_at,n.processing,'' AS content,NULL AS translation,s.name AS source_name,e.title AS event_title FROM topic_news tn JOIN topics t ON t.id=tn.topic_id JOIN news n ON n.id=tn.news_id JOIN news_sources s ON s.id=n.source_id LEFT JOIN events e ON e.id=n.event_id WHERE ${filter} ORDER BY tn.added_at,n.id LIMIT 200`,values);
+    const count=await this.db.one<{total:string}>(`SELECT count(*) AS total FROM topic_news tn JOIN topics t ON t.id=tn.topic_id WHERE ${filter}`,values);
+    const groups=new Map<string,{id:string;title:string;news:NewsItem[]}>();
+    for(const row of rows) {
+      const news=newsDto(row),key=news.eventId??'independent';
+      const group=groups.get(key)??{id:key,title:row.event_title?String(row.event_title):'独立报道',news:[]};
+      group.news.push(news);groups.set(key,group);
+    }
+    return {...window,total:Number(count!.total),displayed:rows.length,truncated:Number(count!.total)>rows.length,groups:[...groups.values()]};
+  }
   async notes(id:string,userId:string) {
     await this.get(id,userId);
     return this.readNotes(id,userId);

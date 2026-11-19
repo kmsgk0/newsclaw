@@ -26,6 +26,9 @@ test('NEWS/TOPIC API validates inputs and enforces public, owner and administrat
     assert.equal((await app.inject({method:'POST',url:`/api/v1/news/${newsId}/favorite`,headers:ah,payload:{}})).statusCode,200);
     assert.equal((await app.inject({url:'/api/v1/library?kind=favorites',headers:bh})).json().data.total,0);
     const created=await app.inject({method:'POST',url:'/api/v1/topics',headers:ah,payload:{name:'Spruce',filter:{keywords:'Spruce'}}});assert.equal(created.statusCode,201);const topicId=created.json().data.id as string;
+    assert.equal((await app.inject({url:`/api/v1/topics/${topicId}/updates`,headers:bh})).statusCode,404);
+    assert.equal((await app.inject({url:`/api/v1/topics/${topicId}/updates`})).statusCode,401);
+    assert.equal((await app.inject({method:'POST',url:`/api/v1/topics/${topicId}/read`,headers:ah,payload:{through:'2099-01-01T00:00:00Z'}})).statusCode,400);
     assert.equal((await app.inject({method:'POST',url:'/api/v1/topics',headers:ah,payload:{name:'No scope',filter:{}}})).statusCode,400);
     for(const id of [topicId,randomUUID()])assert.equal((await app.inject({url:`/api/v1/topics/${id}`,headers:bh})).statusCode,404);
     assert.equal((await app.inject({url:`/api/v1/topics/${topicId}`,headers:ah})).json().data.news.length,1);

@@ -15,10 +15,12 @@ export async function registerTopics(app:FastifyInstance,ctx:AppContext){
   app.get('/api/v1/topics',{schema:{tags:['专题'],summary:'本人专题列表'}},async request=>repo.list(request.actor!.id));
   app.post('/api/v1/topics',{schema:{tags:['专题'],body:json(topicSchema)}},async(request,reply)=>{const result=await repo.create(request.actor!.id,topicSchema.parse(request.body));reply.code(201);return result;});
   app.get('/api/v1/topics/:id',{schema:{tags:['专题'],params:json(id)}},async request=>service.detail(id.parse(request.params).id,request.actor!));
+  app.get('/api/v1/topics/:id/updates',{schema:{tags:['专题'],summary:'查看上次已读以来的新增进展',params:json(id)}},async request=>service.updates(id.parse(request.params).id,request.actor!));
   const patch=topicSchema.partial().strict();
   app.patch('/api/v1/topics/:id',{schema:{tags:['专题'],params:json(id),body:json(patch)}},async request=>{const input=patch.parse(request.body);if(!Object.keys(input).length)throw invalid('请提供需要修改的专题字段');return repo.update(id.parse(request.params).id,request.actor!.id,input);});
   app.delete('/api/v1/topics/:id',{schema:{tags:['专题'],params:json(id)}},async request=>repo.remove(id.parse(request.params).id,request.actor!.id));
-  app.post('/api/v1/topics/:id/read',{schema:{tags:['专题'],params:json(id)}},async request=>repo.markRead(id.parse(request.params).id,request.actor!.id));
+  const readWindow=z.object({through:z.string().datetime({offset:true}).optional()}).strict();
+  app.post('/api/v1/topics/:id/read',{schema:{tags:['专题'],params:json(id),body:json(readWindow)}},async request=>repo.markRead(id.parse(request.params).id,request.actor!.id,readWindow.parse(request.body??{}).through));
   const addNews=z.object({newsId:z.string().uuid()}).strict();
   app.post('/api/v1/topics/:id/news',{schema:{tags:['专题'],params:json(id),body:json(addNews)}},async request=>repo.addNews(id.parse(request.params).id,request.actor!.id,addNews.parse(request.body).newsId));
   const newsParams=id.extend({newsId:z.string().uuid()});

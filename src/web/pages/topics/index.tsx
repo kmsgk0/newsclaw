@@ -28,6 +28,7 @@ import {
 } from "../../components/ui";
 import type { GraphData } from "../../types";
 import { SavedArtifactCard } from "./artifacts";
+import { TopicUpdates } from "./updates";
 import { AddNews, Notes, TopicForm } from "./forms";
 import { type Topic } from "./types";
 
@@ -201,6 +202,7 @@ export function TopicPage() {
             value={view}
             options={[
               { value: 'news', label: '专题报道', count: topic.news?.length },
+              { value: 'updates', label: '新增进展', count: topic.unreadCount },
               { value: 'notes', label: '我的笔记', count: topic.notes?.length },
               {
                 value: 'artifacts',
@@ -211,7 +213,7 @@ export function TopicPage() {
             ]}
             onChange={(value) => setParams({ view: value })}
           />
-          {view === 'news' ? (
+          {view === 'updates' ? <TopicUpdates topicId={id!} onRead={resource.reload}/> : view === 'news' ? (
             <>
               <div className="toolbar">
                 <button
