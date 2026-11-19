@@ -16,5 +16,5 @@ test('EDITOR-07 readers control automatic generation and recover their settings'
   await expect(page.getByLabel('每日开始小时',{exact:true})).toHaveValue('9');
   await expect(page.getByText(/自动调用 0 \/ 2 次/)).toBeVisible();
   await fits(page);
-  await page.screenshot({path:info.outputPath('generation-settings.png')});
+  await page.locator('.panel').filter({has:page.getByRole('heading',{name:'自动生成与用量',exact:true})}).screenshot({path:info.outputPath('generation-settings.png')});
 });
