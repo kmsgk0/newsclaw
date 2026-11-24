@@ -18,6 +18,10 @@ test('SEC-01/02/03/04/07 real API and MCP enforce account ownership, management 
     };
     for(const path of ['/conversations','/memories','/library','/editor','/editor/digests','/editor/journals','/topics','/notifications','/skills/mine'])assert.equal((await api('GET',path)).status,401);
     assert.equal((await api('GET','/news')).status,200);
+    for(const path of [`/news/${randomUUID()}`,`/events/${randomUUID()}`]) {
+      const missing=await api('GET',path);
+      assert.equal(missing.status,404);assert.equal(missing.code,'NOT_FOUND');assert.equal(missing.data,null);
+    }
     const memory=await api('POST','/memories',other.accessToken,{key:'private-b',content:'Only account B can read this memory'});
     const topic=await api('POST','/topics',other.accessToken,{name:'B private topic',filter:{keywords:'云杉'}});
     for(const [path,field] of [[`/memories/${memory.data.id}`,'content'],[`/topics/${topic.data.id}`,'name']] as const) {
@@ -48,6 +52,12 @@ test('SEC-01/02/03/04/07 real API and MCP enforce account ownership, management 
     assert.ok(logs.some(row=>row.requestId==='security-mcp'&&row.result==='failed'));
     assert.ok(!env.state.logs.join('').includes('correct-password'));assert.ok(!env.state.logs.join('').includes(login.accessToken));assert.ok(!env.state.logs.join('').includes('Only account B'));
     const manager=await env.auth.login({username:env.admin.username,password:'correct-password'});
+    const privateConversation=await api('GET',`/conversations/${conversation.data.id}`,manager.accessToken);
+    const absentConversation=await api('GET',`/conversations/${randomUUID()}`,manager.accessToken);
+    for(const result of [privateConversation,absentConversation]) {
+      assert.equal(result.status,404);assert.equal(result.code,'NOT_FOUND');assert.equal(result.data,null);
+    }
+    assert.equal((await api('GET',`/conversations/${conversation.data.id}`,login.accessToken)).status,200);
     const queued=await api('POST',`/admin/sources/${env.source.id}/collect`,manager.accessToken,{operationId:'source-disabled-after-receipt'});
     assert.equal(queued.status,202);
     await env.ctx.db.query('UPDATE news_sources SET enabled=false WHERE id=$1',[env.source.id]);

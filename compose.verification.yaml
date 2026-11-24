@@ -1,0 +1,30 @@
+services:
+  api:
+    env_file: !reset []
+    environment: &fixture-model
+      CHAT_BASE_URL: http://fixture:4999/v1
+      CHAT_API_KEY: synthetic-fixture
+      CHAT_MODEL: fixture
+      EMBEDDING_BASE_URL: http://fixture:4999/v1
+      EMBEDDING_API_KEY: synthetic-fixture
+      EMBEDDING_MODEL: fixture
+      EMBEDDING_DIM: 3
+      SOURCE_ALLOWED_HOSTS: fixture
+    depends_on:
+      fixture: {condition: service_healthy}
+  worker:
+    env_file: !reset []
+    environment:
+      <<: *fixture-model
+      SCHEDULE_ENABLED: 'false'
+  fixture:
+    image: node:24-bookworm-slim
+    command: [node, /fixture.mjs]
+    volumes:
+      - ./scripts/verification/model-fixture.mjs:/fixture.mjs:ro
+    init: true
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:4999/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 2s
+      timeout: 3s
+      retries: 15

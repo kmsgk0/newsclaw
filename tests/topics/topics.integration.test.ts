@@ -66,7 +66,10 @@ test('TOPIC-02 notifications deduplicate overlapping follows, honor cancellation
 test('TOPIC-03/05 heat, timeline and graph preserve source evidence and current event assignment',async()=>{
   const f=await fixture();try{
     const second=await f.add('second');await f.topics.repo.updateHeat();const from=new Date(Date.now()-86400000).toISOString(),to=new Date(Date.now()+1000).toISOString();const trends=await f.topics.repo.trends(from,to,1,20);assert.equal(trends.items[0].reportCount,2);assert.equal(trends.items[0].sourceCount,1);assert.equal(trends.items[0].history[0].reportCount,2);
-    const timeline=await f.topics.repo.timeline(f.eventId);assert.equal(timeline.items.length,2);
+    await f.ctx.db.query('UPDATE news SET published_at=$1 WHERE id=ANY($2::uuid[])',[from,[f.first,second]]);
+    const timeline=await f.topics.repo.timeline(f.eventId);
+    assert.deepEqual(timeline.items.map(item=>item.id),[f.first,second].sort());
+    assert.ok(timeline.items.every(item=>item.sourceName==='Fixture source' && item.url.startsWith('https://news.example/')));
     const graph=validateGraph({entities:[{name:'Spruce lab',type:'company'},{name:'Spruce Engine',type:'product'},{name:'Independent person',type:'person'}],relations:[{source:'Spruce lab',target:'Spruce Engine',label:'released',sourceIds:[f.first]}]},[f.first]);
     await f.ctx.db.tx(tx=>new TopicsRepository(tx).saveGraph(f.first,graph));const result=await f.topics.repo.graph([f.first]);assert.equal(result.nodes.length,3);assert.equal(result.edges.length,1);assert.deepEqual(result.edges[0].sourceIds,[f.first]);
     assert.throws(()=>validateGraph({...graph,relations:[{source:'Spruce lab',target:'Spruce Engine',label:'acquired',sourceIds:[second]}]},[f.first]),{code:'DEPENDENCY_UNAVAILABLE'});

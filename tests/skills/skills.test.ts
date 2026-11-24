@@ -41,5 +41,8 @@ test('SKILL-03/04 explicit skill wins, disabled selection rejects and publicatio
     assert.ok(!(await service.list()).some(x=>x.id===published!.id));
     assert.equal((await service.mine(env.b))[0].id,installed!.id);
     assert.equal((await env.ctx.db.query("SELECT * FROM management_actions WHERE action='skill.update'")).length,1);
+    await service.updatePublic({...env.b,role:'admin'},published!.id,{status:'published'});
+    assert.ok((await service.list()).some(x=>x.id===published!.id));
+    assert.equal((await service.install(env.b,published!.id))!.id,installed!.id);
   } finally {await env.cleanup();}
 });
