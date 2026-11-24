@@ -3,7 +3,10 @@ import { check } from 'k6';
 
 const scenario = __ENV.SCENARIO;
 if (!['submit','task','search'].includes(scenario)) throw new Error('SCENARIO must be submit, task, or search');
-export const options = { vus: Number(__ENV.VUS || 1), duration: __ENV.DURATION || '8s' };
+export const options = {
+  vus: Number(__ENV.VUS || 1), duration: __ENV.DURATION || '60s',
+  thresholds: __ENV.CHECK_THRESHOLDS ? JSON.parse(__ENV.CHECK_THRESHOLDS) : {},
+};
 const base = __ENV.BASE || 'http://127.0.0.1:3107';
 const headers = { Authorization: `Bearer ${__ENV.TOKEN}`, 'Content-Type': 'application/json' };
 export default function () {

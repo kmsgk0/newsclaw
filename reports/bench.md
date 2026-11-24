@@ -1,42 +1,90 @@
-# 压力测试与连接池调整
+# 接口压测与关键词检索索引
 
-日期：2026-11-11；基线提交 `171d719` 加本轮未提交改动。测试为单次隔离实验，不代表实际生产容量。使用真实 Fastify API、PostgreSQL 17、Redis、5,000 条合成新闻与模拟账号；外部模型和信源是本地替身。API 和 PostgreSQL 各限制 0.75 CPU，Redis 0.25 CPU，k6 0.5 CPU；内存上限分别为 768、512、128、256 MiB。服务器还有其他服务，同机竞争和短时间采样会影响结果。
+2026-11-24，在 macOS 的 OrbStack Linux arm64 环境中执行两轮串行压测。基线提交为 `754c2ca099f81d78465bd56a19e3aa4c8b10721a`，索引版为 `718f794fa1a5d9752c59366a244440c0139ba23f`。两轮采用 Node.js 24.22.3、PostgreSQL 17.12、Redis 7.4.12 和 k6 0.54.0，每个应用进程沿用默认 `DB_POOL_MAX=12`。
 
-## 方法
+| 容器 | CPU 上限 | 内存上限 |
+| --- | ---: | ---: |
+| API | 0.75 | 768 MiB |
+| PostgreSQL | 0.75 | 512 MiB |
+| Redis | 0.25 | 128 MiB |
+| k6 | 0.50 | 256 MiB |
 
-使用 [k6 场景](../scripts/performance/benchmark.js)和[隔离运行脚本](../scripts/performance/run.sh)，三个接口分别以 1、4、8 个虚拟用户尽可能连续请求，每档 8 秒。提交为 `POST /api/v1/admin/sources/:id/collect`，每次使用新的操作标识；查询为 `GET /api/v1/tasks/:id`；检索为 `GET /api/v1/news?q=benchmark&semantic=false&pageSize=20`。未启动消费者，提交只测接收，不代表后台处理吞吐。每轮使用新建数据库；提交数量随吞吐变化，因此两轮结束后的任务表大小并不完全相同。
+## 数据与场景
 
-基线将每进程 PostgreSQL 连接池上限设为 12，复测设为 4；其他脚本、并发、时长、资源限制和新闻种子相同。`DB_POOL_MAX` 是新增的可配置项，默认仍为 12；4 只是本实验下的候选设置，部署时须考虑实例数、数据库连接上限和其他负载。
+每档新建数据库和队列，确定性生成 5,000 篇新闻。正文约 250 词，平均 1,685 字符。标题、正文、摘要和译文各有 25 篇包含 `benchmark`，合计 100 篇命中（2%）。插入后执行 `VACUUM (ANALYZE) news`，更新统计并将 GIN 待处理项并入主体索引，再记录计数和分页的执行计划。夹具生成和插入耗时中位数分别为基线 0.95 秒、索引版 2.39 秒。
 
-表中每个单元格依次为 **完成请求数/秒 / P95 毫秒 / HTTP 错误率**；所有状态码检查均通过。
+[k6 脚本](../scripts/performance/benchmark.js)测量提交采集任务（`POST /api/v1/admin/sources/:id/collect`）、查询固定任务（`GET /api/v1/tasks/:id`）和关键词检索（`GET /api/v1/news?q=benchmark&semantic=false&pageSize=20`）。各接口依次使用 1、4、8、20 VU，每档 60 秒，持续发出请求。提交使用不同操作标识，预期返回 202。查询和检索预期返回 200。性能夹具的应用日志级别为 `warn`，请求审计照常写入隔离数据库。三种场景测量接口响应，采集任务执行吞吐由单独的 Worker 实验测量。
 
-| 场景 | VU | 基线：12 连接 | 复测：4 连接 |
-| --- | --- | --- | --- |
-| 提交 | 1 | 390.6 / 4.79 / 0.00% | 459.3 / 2.73 / 0.00% |
-| 提交 | 4 | 664.4 / 35.56 / 0.00% | 690.6 / 26.70 / 0.00% |
-| 提交 | 8 | 663.7 / 61.99 / 0.00% | 678.9 / 47.00 / 0.00% |
-| 查询任务 | 1 | 1071.0 / 1.02 / 0.00% | 1087.7 / 1.00 / 0.00% |
-| 查询任务 | 4 | 1181.0 / 3.92 / 0.00% | 1239.9 / 4.60 / 0.00% |
-| 查询任务 | 8 | 1246.9 / 48.76 / 0.00% | 1272.7 / 34.34 / 0.00% |
-| 新闻检索 | 1 | 102.2 / 23.24 / 0.00% | 105.1 / 23.28 / 0.00% |
-| 新闻检索 | 4 | 100.8 / 88.35 / 0.00% | 101.5 / 88.22 / 0.00% |
-| 新闻检索 | 8 | 106.5 / 103.65 / 0.00% | 104.9 / 99.47 / 0.00% |
+## 接口结果
 
-## 观察与限制
+表中 RPS 是每秒完成的 HTTP 请求，P95 单位为毫秒。每档的 k6 汇总、夹具统计和两条完整查询计划均收录于[结构化结果](bench-results.json)。
 
-本轮提交在 4 与 8 VU 之间、任务查询在 4 与 8 VU 之间吞吐增长有限；检索在 1 VU 后吞吐约 100 次/秒，继续加并发主要增加延迟。这些是本次限额和负载下的饱和迹象，不是服务的普遍容量上限。8 VU 时，连接池为 4 的提交与任务查询 P95 分别低于基线，但任务查询的 4 VU P95 反而上升；检索吞吐变化很小。每档仅运行一次，不能排除共享主机负载和统计波动，不能把差异证明为稳定收益。
+| 接口 | VU | 基线 RPS / P95 ms / 错误率 | 索引版 RPS / P95 ms / 错误率 |
+| --- | ---: | ---: | ---: |
+| 提交 | 1 | 907.6 / 1.60 / 0.00% | 1004.5 / 1.37 / 0.00% |
+| 提交 | 4 | 2008.1 / 3.22 / 0.00% | 1672.1 / 4.05 / 0.00% |
+| 提交 | 8 | 2175.4 / 4.39 / 0.00% | 1786.2 / 7.28 / 0.00% |
+| 提交 | 20 | 1956.4 / 55.66 / 0.00% | 1948.0 / 55.43 / 0.00% |
+| 任务查询 | 1 | 2464.4 / 0.73 / 0.00% | 2247.3 / 0.79 / 0.00% |
+| 任务查询 | 4 | 3282.5 / 1.75 / 0.00% | 3260.2 / 1.30 / 0.00% |
+| 任务查询 | 8 | 3192.7 / 3.20 / 0.00% | 3244.2 / 2.94 / 0.00% |
+| 任务查询 | 20 | 2784.7 / 51.41 / 0.00% | 3562.1 / 43.68 / 0.00% |
+| 新闻检索 | 1 | 6.5 / 188.42 / 0.00% | 330.4 / 5.52 / 0.00% |
+| 新闻检索 | 4 | 2.5 / 1902.23 / 0.00% | 312.9 / 69.77 / 0.00% |
+| 新闻检索 | 8 | 2.0 / 4699.41 / 0.00% | 152.9 / 100.78 / 0.00% |
+| 新闻检索 | 20 | 2.0 / 13003.46 / 2.31% | 130.9 / 217.87 / 0.00% |
 
-检索的**代表性简化查询**执行计划包含对 5,000 条匹配新闻的顺序扫描与排序；它只选择新闻 ID，未包含完整 API 的来源关联及计数查询。该证据说明这组合成检索需要处理大量候选项，不能单独证明线上慢查询的根因，也不能证明缩小连接池提升了检索性能。
+- 提交在基线 8 VU 达到最高吞吐，升到 20 VU 后降至约 1,956 RPS。索引版的吞吐从 8 到 20 VU 增加约 9%，P95 从 7.28 增至 55.43 毫秒。两个版本在 20 VU 都约为 1,950 RPS。
+- 任务查询在 4 VU 已超过 3,200 RPS，8 VU 与 4 VU 接近。索引版在 20 VU 达到 3,562 RPS，同时 P95 从 8 VU 的 2.94 增至 43.68 毫秒。基线在 20 VU 的吞吐低于 4 VU，P95 升至 51.41 毫秒。
+- 新闻检索在两版的 1 VU 档均达到本轮最高吞吐。基线升到 4 VU 后降至 2.5 RPS，20 VU 的 130 个请求中有 3 个返回 500。索引版在 4 VU 仍有 312.9 RPS，8 VU 降至 152.9 RPS。在 20 VU，索引版为 130.9 RPS、P95 217.87 毫秒、零 HTTP 错误。
 
-每档完整 k6 汇总和两份 `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` 保存在 [bench-results.json](bench-results.json)。本轮开始时 k6 容器因输出目录权限无法保存 JSON，已舍弃该轮并修复权限；表格仅使用正式脚本重新运行的结果。
+以上饱和迹象对应本轮容器资源和数据分布。提交与任务查询各自沿用相同的任务处理路径。k6 统计包含压测结束时已发出的请求。
 
-## 重跑
+## 查询计划
 
-在 Docker 可用且已准备 `pgvector/pgvector:pg17`、`redis:7.4-alpine` 和 `grafana/k6:0.54.0` 镜像的环境，先执行 `docker build -f Dockerfile.acceptance -t newsclaw-acceptance:local .`。在仓库根目录指定一个全新的结果目录，依次运行：
+`NewsRepository.search({ q: 'benchmark', semantic: false, pageSize: 20 })` 发出计数与分页两条查询。[查询夹具](../scripts/performance/fixture.ts)记录两条实际 SQL 和各自的参数，并取得 `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`。下表取正式压测 1 VU 检索档的计划，计划在 k6 发出请求前采集。
+
+| 查询 | 基线耗时（ms） | 索引版耗时（ms） | 基线共享缓冲命中块 | 索引版共享缓冲命中块 |
+| --- | ---: | ---: | ---: | ---: |
+| 计数 | 81.782 | 1.355 | 16,250 | 378 |
+| 分页 | 75.705 | 1.597 | 16,555 | 683 |
+
+基线两条查询都顺序扫描 `news`，逐行计算全文检索或子串匹配条件。[索引迁移](../migrations/018_news_text_search_indexes.sql)为正文、摘要和译文创建 trigram GIN 索引。索引版的两条查询都用 `BitmapOr` 合并五个 `Bitmap Index Scan` 的结果，再访问命中的新闻记录。五路分别对应 `search_document`、标题、正文、摘要和译文。检索 SQL、`ts_rank` 排序与计数逻辑沿用同一实现。越界页实测返回空列表，仍携带命中总数 100。
+
+检索使用首尾通配符。含至少三个连续可索引字符、选择性足够的词可以利用 trigram 索引，中文子串也适用。补充探针在摘要含有“区域能源调研”的 100 条记录上验证了中文子串。“能源调”触发位图索引扫描。“能源”只有两个字符，`%能源%` 无法提取 trigram，本次仍顺序扫描 `news`。
+
+## 单 Worker 吞吐
+
+单个 Worker 依次处理 20 个独立信源的采集任务。提交完成后启动消费者，自启动计时至最后一个采集任务进入终态。模型替身每次请求固定延迟 200 毫秒，共处理 40 次调用。
+
+20 个采集任务全部成功，生成 20 条新闻。墙钟时间 9.35 秒，吞吐 2.14 任务/秒。采集任务排队时间 P95 为 8,399 毫秒，执行时间 P95 为 485 毫秒。计时结束时，派生通知有 7 个已完成、33 个待处理，采集吞吐按 20 个采集任务计算。完整任务明细见[结构化结果](bench-results.json)。
+
+## 日常门禁与重跑
+
+日常门禁对三个接口各运行 4 VU、20 秒。响应状态须全部符合合同，HTTP 错误率为 0，P95 小于 1,000 毫秒，吞吐至少为 4 请求/秒。`q=benchmark` 的计数和分页计划均须用到新增文本索引，且不得对 `news` 执行 `Seq Scan`。环境、命令和结果附件见[检查说明](../docs/verification/checks.md#性能门禁)。
+
+在仓库根目录运行以下命令，以同样的档位和容器限额重跑两轮。
 
 ```sh
-PERF_OUTPUT=/tmp/newsclaw-bench bash scripts/performance/run.sh baseline
-PERF_OUTPUT=/tmp/newsclaw-bench bash scripts/performance/run.sh optimized
+bench_dir=$(mktemp -d)
+git worktree add --detach "$bench_dir/baseline" 754c2ca099f81d78465bd56a19e3aa4c8b10721a
+git worktree add --detach "$bench_dir/optimized" 718f794fa1a5d9752c59366a244440c0139ba23f
+(
+  cd "$bench_dir/baseline"
+  docker build -f Dockerfile.acceptance -t newsclaw-acceptance:local .
+  PERF_OUTPUT="$bench_dir/results" bash scripts/performance/run.sh baseline
+)
+(
+  cd "$bench_dir/optimized"
+  PERF_OUTPUT="$bench_dir/results" bash scripts/performance/run.sh optimized
+)
+git worktree remove "$bench_dir/baseline"
+git worktree remove "$bench_dir/optimized"
 ```
 
-脚本不复制 `.env`，使用合成凭据并创建独立容器和网络；结束后清除本次容器、匿名卷与临时令牌。`PERF_VUS_LIST` 和 `PERF_DURATION` 可调整档位与时长；比较时必须保持一致。可通过 `DOCKER_BIN` 指定 Docker 包装器，`PERF_K6_IMAGE` 指定已验证的镜像地址。不要对其他人的服务或生产数据运行这些负载。
+`PERF_SCENARIOS`、`PERF_VUS_LIST`、`PERF_DURATION` 分别指定接口、并发档位和时长。配备[隔离测试环境](../docs/runtime.md)后，从索引版运行日常门禁和单 Worker 测量。
+
+```sh
+VERIFICATION_DIR=.local/verification/gates node scripts/checks/check.mjs --stage performance
+VERIFICATION_DIR=.local/verification/worker-throughput node --import tsx scripts/performance/worker.ts
+```

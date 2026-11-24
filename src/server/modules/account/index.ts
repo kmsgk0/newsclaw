@@ -11,7 +11,7 @@ export async function registerAuth(app: FastifyInstance, ctx: AppContext) {
     reply.setCookie('newsclaw_refresh', session.refreshToken, cookieOptions);
     return { user: session.user, accessToken: session.accessToken };
   };
-  app.post('/api/v1/auth/register', { config: { public: true }, schema: { tags: ['account'], body: credentialsSchema } }, async (req, reply) => { reply.code(201); return { user: await auth.register(req.body) }; });
+  app.post('/api/v1/auth/register', { config: { public: true, openapiStatus: 201 }, schema: { tags: ['account'], body: credentialsSchema } }, async (req, reply) => { reply.code(201); return { user: await auth.register(req.body) }; });
   app.post('/api/v1/auth/login', { config: { public: true }, schema: { tags: ['account'], body: credentialsSchema } }, async (req, reply) => sessionResponse(reply, await auth.login(req.body)));
   app.get('/api/v1/auth/csrf', { config: { public: true }, schema: { tags: ['account'], summary: '取得单次使用的会话安全令牌' } }, async (req, reply) => {
     const sessionId = req.sessionId ?? await auth.refreshSessionId(req.cookies.newsclaw_refresh ?? '');

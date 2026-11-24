@@ -46,6 +46,14 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npx playwright install chromium --only-shell --with-deps
+      - name: Install k6
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint cat grafana/k6:0.54.0 /usr/bin/k6 > "$RUNNER_TEMP/k6"
+          chmod +x "$RUNNER_TEMP/k6"
+          echo "K6_BIN=$RUNNER_TEMP/k6" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/k6" version
       - run: node scripts/checks/check.mjs --group application
   repository-checks:
     name: Repository checks

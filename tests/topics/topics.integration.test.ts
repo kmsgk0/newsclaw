@@ -42,6 +42,8 @@ test('TOPIC-01/04/06 artifacts keep versions and exact share snapshots with revo
     await assert.rejects(f.topics.save(topic.id,f.a,{title:'Invalid',kind:'mindmap',content:'No basis',structure:{label:'Invalid',sourceIds:[randomUUID()]},sourceIds:[f.first]}),{code:'DEPENDENCY_UNAVAILABLE'});
     await assert.rejects(f.topics.save(topic.id,f.b,{title:'No access',kind:'brief',content:'Invalid',sourceIds:[f.first]}),{code:'NOT_FOUND'});
     const preview=await f.topics.repo.preview(first.id,f.a.id);assert.ok(!JSON.stringify(preview).includes('Private sensitive note'));
+    const savedAt=await f.ctx.db.one<{created_at:Date}>('SELECT created_at FROM artifacts WHERE id=$1',[first.id]);
+    assert.equal(preview.createdAt,savedAt!.created_at.toISOString());
     const share=await f.topics.repo.share(first.id,f.a.id);assert.deepEqual(await f.topics.repo.publicShare(share.token),preview);
     await assert.rejects(f.topics.repo.revoke(share.token,f.b.id),{code:'NOT_FOUND'});await assert.rejects(f.topics.repo.share(first.id,f.b.id),{code:'NOT_FOUND'});
     await f.topics.repo.revoke(share.token,f.a.id);await f.topics.repo.revoke(share.token,f.a.id);await assert.rejects(f.topics.repo.publicShare(share.token),{code:'NOT_FOUND'});assert.deepEqual(await f.topics.repo.preview(first.id,f.a.id),preview);
@@ -66,7 +68,10 @@ test('TOPIC-02 notifications deduplicate overlapping follows, honor cancellation
 test('TOPIC-03/05 heat, timeline and graph preserve source evidence and current event assignment',async()=>{
   const f=await fixture();try{
     const second=await f.add('second');await f.topics.repo.updateHeat();const from=new Date(Date.now()-86400000).toISOString(),to=new Date(Date.now()+1000).toISOString();const trends=await f.topics.repo.trends(from,to,1,20);assert.equal(trends.items[0].reportCount,2);assert.equal(trends.items[0].sourceCount,1);assert.equal(trends.items[0].history[0].reportCount,2);
-    const timeline=await f.topics.repo.timeline(f.eventId);assert.equal(timeline.items.length,2);
+    await f.ctx.db.query('UPDATE news SET published_at=$1 WHERE id=ANY($2::uuid[])',[from,[f.first,second]]);
+    const timeline=await f.topics.repo.timeline(f.eventId);
+    assert.deepEqual(timeline.items.map(item=>item.id),[f.first,second].sort());
+    assert.ok(timeline.items.every(item=>item.sourceName==='Fixture source' && item.url.startsWith('https://news.example/')));
     const graph=validateGraph({entities:[{name:'Spruce lab',type:'company'},{name:'Spruce Engine',type:'product'},{name:'Independent person',type:'person'}],relations:[{source:'Spruce lab',target:'Spruce Engine',label:'released',sourceIds:[f.first]}]},[f.first]);
     await f.ctx.db.tx(tx=>new TopicsRepository(tx).saveGraph(f.first,graph));const result=await f.topics.repo.graph([f.first]);assert.equal(result.nodes.length,3);assert.equal(result.edges.length,1);assert.deepEqual(result.edges[0].sourceIds,[f.first]);
     assert.throws(()=>validateGraph({...graph,relations:[{source:'Spruce lab',target:'Spruce Engine',label:'acquired',sourceIds:[second]}]},[f.first]),{code:'DEPENDENCY_UNAVAILABLE'});

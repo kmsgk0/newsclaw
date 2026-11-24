@@ -39,6 +39,7 @@ export interface NewsItem {
   domain: string;
   eventId: string | null;
   favorite?: boolean;
+  readAt?: string;
   processing?: Record<string, unknown>;
 }
 

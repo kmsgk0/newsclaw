@@ -11,7 +11,7 @@ export async function registerSkills(app: FastifyInstance, ctx: AppContext) {
   app.get('/api/v1/skills', { config: { public: true }, schema: { tags: ['Skills'], summary: '浏览已发布技能' } }, async () => ({ items: await service.list() }));
   app.get('/api/v1/skills/mine', { schema: { tags: ['Skills'], summary: '读取本人技能副本' } }, async request => ({ items: await service.mine(request.actor!) }));
   app.get('/api/v1/admin/skills', { config: { admin: true }, schema: { tags: ['Skills'], summary: '管理员查看公共技能发布状态' } }, async () => ({ items: await service.repository.all() }));
-  app.post<{ Params: { id: string } }>('/api/v1/skills/:id/install', { schema: { tags: ['Skills'], summary: '安装公开技能，重复安装复用副本', params: idSchema } }, async (request, reply) => {
+  app.post<{ Params: { id: string } }>('/api/v1/skills/:id/install', { config: { openapiStatus: 201 }, schema: { tags: ['Skills'], summary: '安装公开技能，重复安装复用副本', params: idSchema } }, async (request, reply) => {
     const skill = await service.install(request.actor!, request.params.id); reply.code(201); return skill;
   });
   app.patch<{ Params: { id: string } }>('/api/v1/skills/mine/:id', { schema: { tags: ['Skills'], summary: '修改或启停本人技能', params: idSchema, body: z.toJSONSchema(update, { target: 'draft-7' }) } }, async request => service.update(request.actor!, request.params.id, update.parse(request.body)));

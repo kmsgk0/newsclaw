@@ -273,6 +273,7 @@ export function ChatPanel({
               <small>⌘ / Ctrl + Enter 发送</small>
               {busy ? (
                 <button
+                  key="stop-answer"
                   type="button"
                   className="button secondary small"
                   onClick={stop}
@@ -282,6 +283,7 @@ export function ChatPanel({
                 </button>
               ) : (
                 <button
+                  key="send-question"
                   className="send-button"
                   disabled={!text.trim() || (!!skillId && !effectiveContext)}
                   aria-label="发送问题"

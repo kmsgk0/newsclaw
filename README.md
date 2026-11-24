@@ -71,6 +71,8 @@ sh scripts/acceptance.sh
 
 [正式报告](reports/README.md)汇总安全、权限、并发、事务和异步结果；[代码审查](docs/verification/code-review.md)列明检查范围及问题处理结果；[AI 评测](docs/verification/ai-results.md)记录真实模型输出与内容质量。源码与运行依赖见[依赖说明](docs/dependencies.md)。
 
+本地执行 `make check` 运行全部检查，执行 `make check-security` 运行安全扫描、应用反例及浏览器检查。两条命令使用隔离 PostgreSQL、Redis 和 Chromium，完整检查还需 k6 0.54.0。Docker 验收镜像提供 k6、Chromium 和扫描工具，执行条件见[检查说明](docs/verification/checks.md)。
+
 ## 协作
 
 按[开发指南](CONTRIBUTING.md)准备规约、完成实现和验证，并同步任务状态；全部任务完成后整理现行规格与归档材料。提交使用 Conventional Commits，说明改动及对应规约。环境配置、运行数据和生成型测试产物不进入版本管理，依赖锁文件与无密钥配置示例需要保留；任务要求的脱敏评审与运行记录按指定位置保存。

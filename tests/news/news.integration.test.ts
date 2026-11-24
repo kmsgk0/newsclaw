@@ -59,6 +59,30 @@ test('NEWS-02 failed translation preserves raw and summary and only retries miss
 test('NEWS-05 favorites and reading history isolate users and preserve shared reports',async()=>{
   const f=await fixture();try{await f.collect();const auth=new AuthService(f.ctx.db);const a=await auth.register({username:'reader_a',password:'example-password'});const b=await auth.register({username:'reader_b',password:'example-password'});const id=(await f.service.search({})).items[0].id;await f.service.repo.favorite(a.id,id,true);await f.service.repo.favorite(a.id,id,true);await f.service.repo.read(a.id,id);await f.service.repo.read(a.id,id);assert.equal((await f.service.repo.library(a.id,'favorites',1,20)).total,1);assert.equal((await f.service.repo.library(a.id,'history',1,20)).total,1);assert.equal((await f.service.repo.library(b.id,'favorites',1,20)).total,0);await f.service.repo.favorite(a.id,id,false);assert.equal((await f.service.repo.library(a.id,'favorites',1,20)).total,0);assert.equal((await f.service.get(id)).id,id);await assert.rejects(f.service.repo.favorite(a.id,randomUUID(),true),{code:'NOT_FOUND'});}finally{await f.cleanup();}
 });
+test('NEWS-05 rereading moves the same report to the latest history position',async()=>{
+  const f=await fixture();
+  try {
+    await f.collect();
+    const user=await new AuthService(f.ctx.db).register({username:'history_reader',password:'example-password'});
+    const first=(await f.service.search({})).items[0];
+    f.changeArticle();await f.collect();
+    const second=(await f.service.search({})).items.find(item=>item.id!==first.id)!;
+    await f.service.repo.read(user.id,first.id);await f.service.repo.read(user.id,second.id);
+    await f.ctx.db.query("UPDATE reading_history SET read_at=CASE WHEN news_id=$2 THEN '2000-01-01'::timestamptz ELSE '2001-01-01'::timestamptz END WHERE user_id=$1",[user.id,first.id]);
+    await f.service.repo.read(user.id,first.id);
+    const rows=await f.ctx.db.query<{news_id:string;read_at:Date}>('SELECT news_id,read_at FROM reading_history WHERE user_id=$1 ORDER BY read_at DESC,news_id',[user.id]);
+    assert.equal(rows.length,2);assert.equal(rows[0].news_id,first.id);
+    assert.ok(rows[0].read_at.getTime()>new Date('2001-01-01T00:00:00Z').getTime());
+    const history=await f.service.repo.library(user.id,'history',1,20);
+    assert.equal(history.total,2);assert.deepEqual(history.items.map(item=>item.id),[first.id,second.id]);
+    assert.equal(history.items[0].readAt,rows[0].read_at.toISOString());
+    assert.equal(history.items[1].readAt,rows[1].read_at.toISOString());
+    const reopened=await f.service.get(history.items[0].id);
+    assert.equal(reopened.id,first.id);assert.ok(!('readAt' in reopened));
+    await f.service.repo.favorite(user.id,first.id,true);
+    assert.ok(!('readAt' in (await f.service.repo.library(user.id,'favorites',1,20)).items[0]));
+  }finally{await f.cleanup();}
+});
 test('NEWS-06 daily digest updates one date and preserves success on model failure',async()=>{
   const f=await fixture();try{await f.collect();const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai'}).format(new Date());const run=async(d=date)=>{const task=await f.ctx.tasks.submit(null,'daily',await preparePublicDailyInput(f.ctx,d),randomUUID());return f.ctx.tasks.execute({taskId:task.id,generation:task.generation},f.handlers);};await run();await run();const first=await f.service.repo.digests(date);assert.equal(first.items.length,1);assert.equal((first.items[0].news as unknown[]).length,1);f.model.failDigest=true;await assert.rejects(run());const failed=await f.service.repo.digests(date);assert.deepEqual(failed.items,first.items);assert.equal(failed.status,'pending');assert.ok(failed.latestTask?.error);assert.deepEqual(await run('2000-01-01'),{date:'2000-01-01',status:'empty',message:'当日暂无可用新闻'});}finally{await f.cleanup();}
 });

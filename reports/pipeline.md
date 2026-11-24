@@ -1,7 +1,12 @@
-# 流水线状态
+# 主干构建与合并检查
 
-2026-11-10 的工作区在 `.github/workflows/pr-checks.yml` 中配置了应用、仓库和安全检查；三项通过后构建以 `github.sha` 标记的生产镜像。本次记录时改动尚未推送，因此尚无本轮 GitHub Actions 运行编号或镜像制品。
+`main` 的[构建 #14](https://github.com/kmsgk0/newsclaw/actions/runs/44561465359)由推送 `ec24c604f780f1713151b6e3e5bfd059af2bd25d` 触发。四个作业均成功。
 
-本轮在隔离服务器运行过完整验收和更新后的安全门禁；本机生产镜像构建与干净目录启动见[启动检查](boot-reproduce.md)。这些结果不能代替远端流水线运行记录。GitHub 显示 `main` 为受保护分支，但尚未核实哪些检查被设为必需，以及规则是否对目标合并操作生效。
+| 作业 | 结果 |
+| --- | --- |
+| [Application checks](https://github.com/kmsgk0/newsclaw/actions/runs/44561465359/job/135691597285) | 122 项业务与集成测试、11 项 API 测试、69 项浏览器测试、2 项模型用量检查通过。 |
+| [Repository checks](https://github.com/kmsgk0/newsclaw/actions/runs/44561465359/job/135691597295) | 规约、仓库文件、提交及检查工具通过。 |
+| [Security checks](https://github.com/kmsgk0/newsclaw/actions/runs/44561465359/job/135691596569) | `make check-security` 通过。 |
+| [Production image](https://github.com/kmsgk0/newsclaw/actions/runs/44561465359/job/135694336033) | 前三项通过后构建镜像，标签为 `newsclaw:ec24c604f780f1713151b6e3e5bfd059af2bd25d`。 |
 
-2026-11-11 只读查询时，`main` 的分支摘要返回 `protected=true`，但摘要中的 `required_status_checks` 为 `enforcement_level=off` 且检查列表为空；仓库 rulesets 列表返回空数组。GitHub 集成访问详细分支保护接口返回 403（当前集成没有所需权限），因此仍需仓库管理员确认完整规则与实际生效范围。本机 `gh` 登录状态显示令牌无效；上述结果不能证明本轮工作流已经执行。
+2026-11-22 核对 GitHub 分支保护配置：合入 `main` 须通过表中前三项检查，PR 分支须与主干同步，规则对管理员同样生效。[工作流定义](../.github/workflows/pr-checks.yml) · [本地门禁演练](gate-red-green.md)

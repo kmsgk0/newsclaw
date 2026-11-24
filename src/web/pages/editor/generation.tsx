@@ -15,7 +15,7 @@ export function GenerationPanel() {
   const paused = settings.pausedUntil && Date.parse(settings.pausedUntil) > Date.now();
   return <section className="panel narrow-panel" style={{marginTop:24}}>
     <h2>自动生成与用量</h2>
-    <p className="muted">控制个人日报和编辑手记。失败重试也占一次自动调用；手动生成独立可用。</p>
+    <p className="muted">控制个人日报和编辑手记。调用次数包含失败重试；手动生成独立可用。</p>
     <p>{usage.date}：自动调用 {usage.automaticCalls} / {settings.dailyLimit} 次，手动调用 {usage.manualCalls} 次；已知用量 {usage.knownTotalTokens} token。{usage.unknownCalls>0 && `另有 ${usage.unknownCalls} 次尚无总 token 用量。`}</p>
     {paused && <p className="inline-notice">上游额度不可用，自动生成暂停至 {formatDate(settings.pausedUntil!,true)}。<button className="text-link" disabled={operation.busy} onClick={()=>operation.run(()=>api('/editor/generation','PATCH',{resume:true}),resource.reload,'已恢复自动生成')}>恢复自动生成</button></p>}
     <form key={JSON.stringify(settings)} onSubmit={event=>{

@@ -28,7 +28,7 @@ export async function registerNews(app: FastifyInstance,ctx: AppContext) {
   app.get('/api/v1/digests',{config:{public:true},schema:{tags:['日报'],querystring:json(dates)}},async request=>repo.digests(dates.parse(request.query).date));
   app.get('/api/v1/admin/sources',{config:{admin:true},schema:{tags:['管理']}},async()=>({items:await repo.sources(true)}));
   app.get('/api/v1/admin/news',{config:{admin:true},schema:{tags:['管理'],summary:'查找全部收录报道',querystring:json(searchSchema)}},async request=>repo.search(searchSchema.parse(request.query),undefined,true));
-  app.post('/api/v1/admin/sources',{config:{admin:true},schema:{tags:['管理'],body:json(sourceSchema)}},async(request,reply)=>{
+  app.post('/api/v1/admin/sources',{config:{admin:true,openapiStatus:201},schema:{tags:['管理'],body:json(sourceSchema)}},async(request,reply)=>{
     const result=await service.saveSource(sourceSchema.parse(request.body));reply.code(201);
     await ctx.db.query('INSERT INTO management_actions(actor_id,action,object_id,result) VALUES($1,$2,$3,$4)',[request.actor!.id,'source.create',result.id,'succeeded']);return result;
   });
@@ -39,12 +39,12 @@ export async function registerNews(app: FastifyInstance,ctx: AppContext) {
     const result=await service.saveSource(sourceSchema.parse({name:old.name,kind:old.kind,url:old.url,enabled:old.enabled,config:old.config,...patch}),id);
     await ctx.db.query('INSERT INTO management_actions(actor_id,action,object_id,result) VALUES($1,$2,$3,$4)',[request.actor!.id,'source.update',id,'succeeded']);return result;
   });
-  app.post('/api/v1/admin/sources/:id/collect',{config:{admin:true},schema:{tags:['管理'],params:json(idSchema),body:json(operationSchema)}},async(request,reply)=>{
+  app.post('/api/v1/admin/sources/:id/collect',{config:{admin:true,openapiStatus:202},schema:{tags:['管理'],params:json(idSchema),body:json(operationSchema)}},async(request,reply)=>{
     const id=idSchema.parse(request.params).id;const source=await repo.source(id);if(!source.enabled)throw invalid('请先启用信源');
     const task=await ctx.tasks.submit(request.actor,'collect',{sourceId:id},operationSchema.parse(request.body).operationId,null);reply.code(202);return {taskId:task.id,status:task.status,statusUrl:`/api/v1/tasks/${task.id}`};
   });
   const reprocess=operationSchema.extend({refreshSource:z.boolean().default(true)}).strict();
-  app.post('/api/v1/admin/news/:id/reprocess',{config:{admin:true},schema:{tags:['管理'],summary:'重新处理一篇报道',params:json(idSchema),body:json(reprocess)}},async(request,reply)=>{
+  app.post('/api/v1/admin/news/:id/reprocess',{config:{admin:true,openapiStatus:202},schema:{tags:['管理'],summary:'重新处理一篇报道',params:json(idSchema),body:json(reprocess)}},async(request,reply)=>{
     const id=idSchema.parse(request.params).id,body=reprocess.parse(request.body),news=await repo.get(id),source=await repo.source(news.sourceId);
     if(!source.enabled)throw invalid('请先启用信源');
     const task=await ctx.tasks.submit(request.actor,'collect',{sourceId:source.id,newsId:id,refreshSource:body.refreshSource,force:true},body.operationId,null);
@@ -53,7 +53,7 @@ export async function registerNews(app: FastifyInstance,ctx: AppContext) {
   const eventBody=z.object({eventId:z.string().uuid().nullable()}).strict();
   app.patch('/api/v1/admin/news/:id/event',{config:{admin:true},schema:{tags:['管理'],params:json(idSchema),body:json(eventBody)}},async request=>service.moveEvent(idSchema.parse(request.params).id,eventBody.parse(request.body).eventId,request.actor!.id));
   const digestBody=operationSchema.extend({date:dateSchema}).strict();
-  app.post('/api/v1/admin/digests',{config:{admin:true},schema:{tags:['管理'],body:json(digestBody)}},async(request,reply)=>{const b=digestBody.parse(request.body);const task=await ctx.tasks.submit(request.actor,'daily',await preparePublicDailyInput(ctx,b.date),b.operationId,null,ctx.db,{date:b.date});reply.code(202);return {taskId:task.id,status:task.status,statusUrl:`/api/v1/tasks/${task.id}`};});
+  app.post('/api/v1/admin/digests',{config:{admin:true,openapiStatus:202},schema:{tags:['管理'],body:json(digestBody)}},async(request,reply)=>{const b=digestBody.parse(request.body);const task=await ctx.tasks.submit(request.actor,'daily',await preparePublicDailyInput(ctx,b.date),b.operationId,null,ctx.db,{date:b.date});reply.code(202);return {taskId:task.id,status:task.status,statusUrl:`/api/v1/tasks/${task.id}`};});
 }
 export async function seedSources(db: AppContext['db']) {
   const sources=[

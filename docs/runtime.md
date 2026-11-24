@@ -34,7 +34,7 @@ API 启动前自动迁移并初始化公共信源；已有来源配置保持不�
 | `APP_ORIGIN`、`COOKIE_SECURE` | 网页来源及安全 Cookie，默认 localhost:3100 和 true |
 | `MODEL_TIMEOUT_MS` | 单次模型请求超时，默认 120000 毫秒 |
 | `TASK_ATTEMPTS`、`TASK_BACKOFF_MS` | 一轮最多三次业务尝试，指数退避从 2000 毫秒起并带抖动 |
-| `DB_POOL_MAX` | 每个应用进程的数据库连接池上限，默认 12，可设为 1–100；多进程时按各进程之和规划数据库连接容量 |
+| `DB_POOL_MAX` | 每个应用进程的数据库连接池上限，默认 12，可设为 1–100；多进程时按各进程之和规划数据库连接容量，压测结果见[性能记录](../reports/bench.md) |
 | `QUEUE_PREFIX` | 队列命名空间，测试使用独立值 |
 | `APP_VERSION` | 响应及运行日志中的版本标识 |
 | `SCHEDULE_ENABLED` | Worker 默认启用定时任务，设为 false 可运行仅处理主动提交的消费者 |
@@ -93,6 +93,24 @@ docker compose exec -T backup sh /scripts/restore.sh /backups/newsclaw-<timestam
 
 ## 应用检查
 
+### 干净源码与手机任务流程
+
+在目标提交的干净克隆或 worktree 中，准备 Node.js 24 或更新版本及支持 `!reset` 合并的 Docker Compose，执行：
+
+```sh
+npm ci --ignore-scripts --no-audit --no-fund
+npx playwright install chromium --only-shell
+node scripts/verification/runtime.mjs verify
+```
+
+入口使用现有 Dockerfile 和 Compose 构建 API、Worker、数据库与队列，并通过 `compose.verification.yaml` 提供固定新闻及模型响应。默认访问地址为 `http://localhost:43100`，数据库、Redis 的本地端口分别为 25434、26381；`VERIFICATION_PORT` 可指定网页端口。配置由脚本为独立 Compose 项目提供，镜像与健康响应采用实际 Git 提交号。
+
+脚本创建独立账号、采集一篇测试新闻，然后在 390 × 844 触屏视口走通登录、日报提交、真实 Worker 处理、状态轮询、另一账号 404 和审计回查。模型替身为日报保留 6.5 秒处理时间，以观察 pending、running、succeeded。结果和截图保存到 `.local/verification/runtime/`；`verify` 完成后移除本次 Compose 项目的容器和测试数据卷。
+
+需要分开观察时，依次使用 `start`、`check`、`stop` 三个动作。`start` 保留环境供浏览器打开，`check` 执行上述流程，`stop` 清理该版本的独立验证环境。
+
+### 单项检查
+
 `npm test` 运行行为测试，`npm run test:api` 运行真实 HTTP、队列与进程恢复用例，`npm run test:e2e` 使用隔离应用验证浏览器流程。测试创建独立数据库和队列，外部信源与模型使用 HTTP 替身。测试数据库账号需有创建临时数据库权限，生产账号不用于自动检查。
 
-运行检查结果通过[报告索引](../reports/README.md)查阅。API 文档入口为 `/docs/api` 和 `/api/v1/openapi.json`；当前生成接口定义时返回 500，具体原因见[代码审查](verification/code-review.md)。
+运行检查结果通过[报告索引](../reports/README.md)查阅。API 文档页面位于 `/docs/api`，OpenAPI JSON 位于 `/api/v1/openapi.json`。接口定义的检查见[文档回归记录](../reports/security-fix-log.md#接口文档)。

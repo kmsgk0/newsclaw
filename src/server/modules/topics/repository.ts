@@ -141,8 +141,8 @@ export class TopicsRepository {
     return {deleted:true};
   }
   async preview(artifactId:string,userId:string) {
-    const row=await this.db.one('SELECT title,kind,content,structure,sources FROM artifacts WHERE id=$1 AND user_id=$2',[artifactId,userId]);if(!row)throw notFound();
-    return {title:row.title,kind:row.kind,content:row.content,structure:row.structure,sources:row.sources};
+    const row=await this.db.one('SELECT title,kind,content,structure,sources,created_at FROM artifacts WHERE id=$1 AND user_id=$2',[artifactId,userId]);if(!row)throw notFound();
+    return {title:row.title,kind:row.kind,content:row.content,structure:row.structure,sources:row.sources,createdAt:iso(row.created_at)};
   }
   async exportable(artifactId:string,userId:string) {
     const row=await this.db.one<ExportArtifact>('SELECT title,kind,content,structure,sources,created_at AS "savedAt" FROM artifacts WHERE id=$1 AND user_id=$2',[artifactId,userId]);

@@ -13,7 +13,7 @@ function range(from?:string,to?:string){const end=to??new Date().toISOString(),s
 export async function registerTopics(app:FastifyInstance,ctx:AppContext){
   const service=new TopicsService(ctx),repo=service.repo;
   app.get('/api/v1/topics',{schema:{tags:['专题'],summary:'本人专题列表'}},async request=>repo.list(request.actor!.id));
-  app.post('/api/v1/topics',{schema:{tags:['专题'],body:json(topicSchema)}},async(request,reply)=>{const result=await repo.create(request.actor!.id,topicSchema.parse(request.body));reply.code(201);return result;});
+  app.post('/api/v1/topics',{ config: { openapiStatus: 201 },schema:{tags:['专题'],body:json(topicSchema)}},async(request,reply)=>{const result=await repo.create(request.actor!.id,topicSchema.parse(request.body));reply.code(201);return result;});
   app.get('/api/v1/topics/:id',{schema:{tags:['专题'],params:json(id)}},async request=>service.detail(id.parse(request.params).id,request.actor!));
   app.get('/api/v1/topics/:id/updates',{schema:{tags:['专题'],summary:'查看上次已读以来的新增进展',params:json(id)}},async request=>service.updates(id.parse(request.params).id,request.actor!));
   const patch=topicSchema.partial().strict();
@@ -26,11 +26,11 @@ export async function registerTopics(app:FastifyInstance,ctx:AppContext){
   const newsParams=id.extend({newsId:z.string().uuid()});
   app.delete('/api/v1/topics/:id/news/:newsId',{schema:{tags:['专题'],summary:'从本人专题移除报道并停止自动加入',params:json(newsParams)}},async request=>{const p=newsParams.parse(request.params);return repo.removeNews(p.id,request.actor!.id,p.newsId);});
   const note=z.object({content:z.string().trim().min(1).max(20000)}).strict();
-  app.post('/api/v1/topics/:id/notes',{schema:{tags:['专题'],params:json(id),body:json(note)}},async(request,reply)=>{const result=await repo.addNote(id.parse(request.params).id,request.actor!.id,note.parse(request.body).content);reply.code(201);return result;});
+  app.post('/api/v1/topics/:id/notes',{ config: { openapiStatus: 201 },schema:{tags:['专题'],params:json(id),body:json(note)}},async(request,reply)=>{const result=await repo.addNote(id.parse(request.params).id,request.actor!.id,note.parse(request.body).content);reply.code(201);return result;});
   const noteParams=id.extend({noteId:z.string().uuid()});
   app.patch('/api/v1/topics/:id/notes/:noteId',{schema:{tags:['专题'],summary:'修改本人专题笔记',params:json(noteParams),body:json(note)}},async request=>{const p=noteParams.parse(request.params);return repo.updateNote(p.id,p.noteId,request.actor!.id,note.parse(request.body).content);});
   app.delete('/api/v1/topics/:id/notes/:noteId',{schema:{tags:['专题'],summary:'删除本人专题笔记',params:json(noteParams)}},async request=>{const p=noteParams.parse(request.params);return repo.removeNote(p.id,p.noteId,request.actor!.id);});
-  app.post('/api/v1/topics/:id/artifacts',{schema:{tags:['成果'],params:json(id),body:json(artifactSchema)}},async(request,reply)=>{const result=await service.save(id.parse(request.params).id,request.actor!,request.body);reply.code(201);return result;});
+  app.post('/api/v1/topics/:id/artifacts',{ config: { openapiStatus: 201 },schema:{tags:['成果'],params:json(id),body:json(artifactSchema)}},async(request,reply)=>{const result=await service.save(id.parse(request.params).id,request.actor!,request.body);reply.code(201);return result;});
   app.get('/api/v1/topics/:id/graph',{schema:{tags:['专题'],params:json(id)}},async request=>service.graph(id.parse(request.params).id,request.actor!));
   app.get('/api/v1/artifacts/:id/share-preview',{schema:{tags:['分享'],params:json(id)}},async request=>repo.preview(id.parse(request.params).id,request.actor!.id));
   app.get('/api/v1/artifacts/:id/export',{config:{rawResponse:true},schema:{tags:['成果'],summary:'导出本人单份成果为 Markdown，最大 1 MiB',params:json(id),response:{200:{type:'string'}}}},async(request,reply)=>{
@@ -41,7 +41,7 @@ export async function registerTopics(app:FastifyInstance,ctx:AppContext){
   app.patch('/api/v1/artifacts/:id',{schema:{tags:['成果'],summary:'重命名本人阅读成果',params:json(id),body:json(artifactTitle)}},async request=>repo.renameArtifact(id.parse(request.params).id,request.actor!.id,artifactTitle.parse(request.body).title));
   app.delete('/api/v1/artifacts/:id',{schema:{tags:['成果'],summary:'删除本人阅读成果及其分享',params:json(id)}},async request=>repo.removeArtifact(id.parse(request.params).id,request.actor!.id));
   const confirm=z.object({confirmed:z.literal(true)}).strict();
-  app.post('/api/v1/artifacts/:id/shares',{schema:{tags:['分享'],params:json(id),body:json(confirm)}},async(request,reply)=>{confirm.parse(request.body);const result=await repo.share(id.parse(request.params).id,request.actor!.id);reply.code(201);return result;});
+  app.post('/api/v1/artifacts/:id/shares',{ config: { openapiStatus: 201 },schema:{tags:['分享'],params:json(id),body:json(confirm)}},async(request,reply)=>{confirm.parse(request.body);const result=await repo.share(id.parse(request.params).id,request.actor!.id);reply.code(201);return result;});
   app.get('/api/v1/shares/:token',{config:{public:true},schema:{tags:['分享'],params:json(token)}},async request=>repo.publicShare(token.parse(request.params).token));
   app.delete('/api/v1/shares/:token',{schema:{tags:['分享'],params:json(token)}},async request=>repo.revoke(token.parse(request.params).token,request.actor!.id));
   const follow=z.object({kind:z.enum(['event','topic']),id:z.string().uuid()}).strict();

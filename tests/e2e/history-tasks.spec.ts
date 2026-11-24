@@ -3,6 +3,26 @@ import { randomUUID } from 'node:crypto';
 import { fits, register } from './helpers';
 import type { Task } from '../../src/web/types';
 
+test('EDITOR-06 journal with no new activity explains the empty result without creating entries', async ({ page }, info) => {
+  await register(page);
+  await page.getByRole('button', { name: '编辑手记', exact: true }).click();
+  const generate = page.getByRole('button', { name: '整理阅读活动', exact: true });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const completed = page.waitForResponse(async response => response.url().includes('/api/v1/tasks/') && (await response.json()).data?.status === 'succeeded');
+    await generate.click();
+    await completed;
+    await expect(page.locator('.task-status')).toHaveClass(/succeeded/);
+    await expect(page.locator('.task-status')).toContainText('没有待整理的新内容');
+    await expect(page.locator('.reading-history')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: '暂无编辑手记', exact: true })).toBeVisible();
+    await expect(generate).toBeEnabled();
+  }
+  await page.reload();
+  await expect(page.locator('.task-status')).toContainText('没有待整理的新内容');
+  await expect(page.locator('.reading-history')).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath('journal-no-new-activity.png') });
+});
+
 test('EDITOR-04/06 completed and failed reading tasks allow another generation', async ({ page }, info) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));

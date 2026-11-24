@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 type Row = Record<string, unknown>;
 const iso = (value: unknown): string | null => value == null ? null : (value instanceof Date?value:new Date(String(value))).toISOString();
 export function newsDto(row: Row): NewsItem {
-  return { id: String(row.id), title: String(row.title), sourceId: String(row.source_id), sourceName: String(row.source_name), url: String(row.url), publishedAt: iso(row.published_at), content: String(row.content), contentScope: row.content_scope as NewsItem['contentScope'], summary: row.summary == null ? null : String(row.summary), translation: row.translation == null ? null : String(row.translation), language: String(row.language), domain: String(row.domain), eventId: row.event_id == null ? null : String(row.event_id), createdAt: iso(row.created_at)!, processing: row.processing as Record<string, unknown>, ...(row.favorite != null ? { favorite: Boolean(row.favorite) } : {}), ...(row.unread != null ? { unread: Boolean(row.unread) } : {}) };
+  return { id: String(row.id), title: String(row.title), sourceId: String(row.source_id), sourceName: String(row.source_name), url: String(row.url), publishedAt: iso(row.published_at), content: String(row.content), contentScope: row.content_scope as NewsItem['contentScope'], summary: row.summary == null ? null : String(row.summary), translation: row.translation == null ? null : String(row.translation), language: String(row.language), domain: String(row.domain), eventId: row.event_id == null ? null : String(row.event_id), createdAt: iso(row.created_at)!, processing: row.processing as Record<string, unknown>, ...(row.favorite != null ? { favorite: Boolean(row.favorite) } : {}), ...(row.read_at != null ? { readAt: iso(row.read_at)! } : {}), ...(row.unread != null ? { unread: Boolean(row.unread) } : {}) };
 }
 export function sourceDto(row: Row): Source { return { id: String(row.id), name: String(row.name), kind: row.kind as Source['kind'], url: String(row.url), enabled: Boolean(row.enabled), config: row.config as Record<string, unknown>, lastCollectedAt: iso(row.last_collected_at), lastError: row.last_error == null ? null : String(row.last_error) }; }
 export const newsSelect = 'SELECT n.*, s.name AS source_name FROM news n JOIN news_sources s ON s.id=n.source_id';
@@ -68,7 +68,7 @@ export class NewsRepository {
   }
   async library(userId: string, kind: 'favorites' | 'history', page: number, pageSize: number) {
     const table = kind === 'favorites' ? 'favorites' : 'reading_history', time = kind === 'favorites' ? 'created_at' : 'read_at';
-    const rows = await this.db.query(`SELECT n.*,s.name AS source_name,EXISTS(SELECT 1 FROM favorites saved WHERE saved.user_id=$1 AND saved.news_id=n.id) AS favorite FROM ${table} f JOIN news n ON n.id=f.news_id JOIN news_sources s ON s.id=n.source_id WHERE f.user_id=$1 ORDER BY f.${time} DESC,n.id LIMIT $2 OFFSET $3`, [userId,pageSize,(page-1)*pageSize]);
+    const rows = await this.db.query(`SELECT n.*,s.name AS source_name,${kind === 'history' ? 'f.read_at,' : ''}EXISTS(SELECT 1 FROM favorites saved WHERE saved.user_id=$1 AND saved.news_id=n.id) AS favorite FROM ${table} f JOIN news n ON n.id=f.news_id JOIN news_sources s ON s.id=n.source_id WHERE f.user_id=$1 ORDER BY f.${time} DESC,n.id LIMIT $2 OFFSET $3`, [userId,pageSize,(page-1)*pageSize]);
     const count = await this.db.one<{ total: string }>(`SELECT count(*) AS total FROM ${table} WHERE user_id=$1`, [userId]);
     return { items: rows.map(newsDto), total: Number(count?.total ?? 0), page, pageSize };
   }

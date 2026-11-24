@@ -11,7 +11,7 @@ import { TaskService } from '../../src/server/runtime/tasks.js';
 import type { AppContext } from '../../src/server/context.js';
 import { NewsService } from '../../src/server/modules/news/index.js';
 
-export async function createAPIEnvironment({port=0,seed=true}={}) {
+export async function createAPIEnvironment({port=0,seed=true,captureLogs=true}={}) {
   const database=await createTestDb();
   const state={delayMs:0,fail:false,modelCalls:0,toolNewsId:'',logs:[] as string[]};
   const quotaInputs=new Set<string>();
@@ -56,7 +56,9 @@ export async function createAPIEnvironment({port=0,seed=true}={}) {
   const upstreamUrl=`http://127.0.0.1:${address.port}`;
   const config={...database.config,chatBaseUrl:`${upstreamUrl}/v1`,chatApiKey:'fixture',chatModel:'fixture',embeddingBaseUrl:`${upstreamUrl}/v1`,embeddingApiKey:'fixture',embeddingModel:'fixture',embeddingDim:3,allowedSourceHosts:['127.0.0.1'],modelTimeoutMs:10000,taskBackoffMs:50,appOrigin:`http://localhost:${port||3101}`};
   const tasks=new TaskService(database.db,config),model=new ModelClient(config);
-  const logger=pino({timestamp:()=>`,"timestamp":"${new Date().toISOString()}"`,base:null},{write:line=>state.logs.push(line)});
+  const logger = captureLogs
+    ? pino({ timestamp: () => `,"timestamp":"${new Date().toISOString()}"`, base: null }, { write: line => state.logs.push(line) })
+    : pino({ level: 'warn', base: null });
   const ctx:AppContext={config,db:database.db,tasks,model,logger};
   const auth=new AuthService(ctx.db);
   const a=await auth.register({username:'api_reader_a',password:'correct-password'}),b=await auth.register({username:'api_reader_b',password:'correct-password'}),admin=await auth.register({username:'api_manager',password:'correct-password'});

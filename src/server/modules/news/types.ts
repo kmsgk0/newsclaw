@@ -2,7 +2,7 @@ export interface NewsItem {
   id: string; title: string; sourceId: string; sourceName: string; url: string; publishedAt: string | null;
   content: string; contentScope: 'full' | 'summary'; summary: string | null; translation: string | null;
   language: string; domain: string; eventId: string | null; createdAt: string;
-  processing: Record<string, unknown>; favorite?: boolean; unread?: boolean;
+  processing: Record<string, unknown>; favorite?: boolean; unread?: boolean; readAt?: string;
 }
 export interface Source {
   id: string; name: string; kind: 'rss' | 'json' | 'web'; url: string; enabled: boolean;
