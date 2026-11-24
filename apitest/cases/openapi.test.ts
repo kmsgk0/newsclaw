@@ -51,6 +51,42 @@ test('OPS-06 complete application exposes OpenAPI, route permissions and documen
       assert.deepEqual(Object.keys(responses[status].content['application/json'].schema.properties).sort(), ['code', 'data', 'message', 'requestId']);
     }
 
+    for (const path of ['/api/v1/auth/register', '/api/v1/topics', '/api/v1/topics/{id}/notes', '/api/v1/topics/{id}/artifacts', '/api/v1/artifacts/{id}/shares', '/api/v1/skills/{id}/install', '/api/v1/conversations', '/api/v1/memories', '/api/v1/admin/sources']) {
+      assert.ok(definition.paths[path].post.responses['201'], path);
+      assert.equal(definition.paths[path].post.responses['200'], undefined, path);
+    }
+    for (const path of ['/api/v1/editor/digests/generate', '/api/v1/editor/journals/generate', '/api/v1/admin/sources/{id}/collect', '/api/v1/admin/news/{id}/reprocess', '/api/v1/admin/digests', '/api/v1/admin/tasks/{id}/retry']) {
+      const response = definition.paths[path].post.responses['202'];
+      assert.ok(response, path);
+      assert.deepEqual(response.content['application/json'].schema.properties.data.required, ['taskId', 'status', 'statusUrl']);
+      assert.equal(definition.paths[path].post.responses['200'], undefined, path);
+    }
+    const stream = definition.paths['/api/v1/conversations/{id}/messages'].post.responses;
+    assert.equal(stream['200'].content['text/event-stream'].schema.type, 'string');
+    assert.equal(stream['200'].content['application/json'], undefined);
+    assert.ok(stream['401'].content['application/json']);
+
+    const registered = await fetch(`${env.baseUrl}/api/v1/auth/register`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ username: 'documented_reader', password: 'correct-password' }),
+    });
+    assert.equal(registered.status, 201);
+    const registration = await registered.json();
+    assert.equal(registration.code, 'OK');
+    assert.equal(registration.data.user.username, 'documented_reader');
+    assert.equal(typeof registration.data.user.id, 'string');
+
+    const admin = await env.auth.login({ username: env.admin.username, password: 'correct-password' });
+    const submitted = await fetch(`${env.baseUrl}/api/v1/admin/sources/${env.source.id}/collect`, {
+      method: 'POST', headers: { authorization: `Bearer ${admin.accessToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ operationId: 'openapi-contract' }),
+    });
+    assert.equal(submitted.status, 202);
+    const accepted = await submitted.json();
+    assert.equal(accepted.code, 'OK');
+    assert.equal(accepted.data.status, 'pending');
+    assert.equal(accepted.data.statusUrl, `/api/v1/tasks/${accepted.data.taskId}`);
+
     const news = await fetch(`${env.baseUrl}/api/v1/news`);
     assert.equal(news.status, 200);
     const newsBody = await news.json();

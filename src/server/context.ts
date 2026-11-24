@@ -7,5 +7,5 @@ export interface Actor { id: string; username: string; role: 'user' | 'admin' }
 export interface AppContext { config: Config; db: Db; model: ModelClient; tasks: TaskService; logger: Logger }
 declare module 'fastify' {
   interface FastifyRequest { actor: Actor | null; sessionId: string | null }
-  interface FastifyContextConfig { public?: boolean; admin?: boolean; rawResponse?: boolean }
+  interface FastifyContextConfig { public?: boolean; admin?: boolean; rawResponse?: boolean; openapiStatus?: 201 | 202; openapiContentType?: 'text/event-stream' }
 }

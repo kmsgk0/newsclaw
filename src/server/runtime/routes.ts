@@ -15,5 +15,5 @@ export async function registerTasks(app: FastifyInstance, ctx: AppContext) {
     Body: {
       operationId: string;
     };
-  }>('/api/v1/admin/tasks/:id/retry', { config: { admin: true }, schema: { tags: ['tasks'], params, body: { type: 'object', required: ['operationId'], additionalProperties: false, properties: { operationId: { type: 'string', minLength: 1, maxLength: 160 } } } } }, async (req, reply) => { reply.code(202); return ctx.tasks.replay(req.actor!, req.params.id, req.body.operationId); });
+  }>('/api/v1/admin/tasks/:id/retry', { config: { admin: true, openapiStatus: 202 }, schema: { tags: ['tasks'], params, body: { type: 'object', required: ['operationId'], additionalProperties: false, properties: { operationId: { type: 'string', minLength: 1, maxLength: 160 } } } } }, async (req, reply) => { reply.code(202); return ctx.tasks.replay(req.actor!, req.params.id, req.body.operationId); });
 }

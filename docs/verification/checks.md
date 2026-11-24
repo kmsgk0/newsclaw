@@ -39,6 +39,8 @@ sh scripts/acceptance.sh --base main --head HEAD
 
 ## 开发检查
 
+接口文档位于 `/docs/api`，JSON 定义位于 `/api/v1/openapi.json`。在文档中执行登录接口取得访问令牌，点击 Authorize 填入令牌后，可试调本人编辑设置等受保护写请求。页面在每次写入前取得新的单次 CSRF token。创建资源返回 201，后台接收返回 202 和任务查询信息，消息接口返回 SSE；响应定义与运行结果由 `apitest/cases/openapi.test.ts` 核对，文档页面及写请求由 `tests/e2e/openapi.spec.ts` 检查。
+
 开发环境可直接运行单项命令。需要 Node.js 24 或更新版本、npm、Git 和 Gitleaks 8.30.1；应用检查另需 PostgreSQL、Redis、测试配置、k6 0.54.0 和 Chromium。k6 使用 PATH 中的程序或 `K6_BIN` 指定路径。安装及本地服务说明见[运行说明](../runtime.md)。
 
 ```sh
