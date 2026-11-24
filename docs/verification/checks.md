@@ -1,6 +1,6 @@
 # 检查与自动验收
 
-完整验收使用 Docker Compose 和系统 shell。验收镜像提供 Node、Git、Gitleaks 和 Chromium，自动准备专用 PostgreSQL、Redis 及测试配置，执行现有检查并生成报告。应用的日常启动见[运行说明](../runtime.md)。
+完整验收使用 Docker Compose 和系统 shell。验收镜像提供 Node、Git、Gitleaks、k6 和 Chromium，自动准备专用 PostgreSQL、Redis 及测试配置，执行现有检查并生成报告。应用的日常启动见[运行说明](../runtime.md)。
 
 ## 一键验收
 
@@ -24,6 +24,8 @@ sh scripts/acceptance.sh
 | `browser/`、`browser-results/` | Playwright 详细报告、截图与失败轨迹 |
 | `review.md` | 执行时的正式代码审查记录，保留已登记问题 |
 | `usage-recording.json` | SEC-07 正常与结构失败调用的预期用量、日志用量和消息用量 |
+| `unit-coverage.lcov` | 业务阶段逐文件覆盖率 |
+| `performance/results.json` | 固定负载指标和检索查询计划 |
 
 报告按账号、新闻、个人编辑、技能、专题、运行及工程检查整理用例。搜索支持需求编号、名称和文件；浏览器的不同视口保留各自执行结果。自动结果针对本轮检查，已登记问题仍见[代码审查](code-review.md)。生成材料全部由 Git 忽略，命令不改写 `reports/` 的正式报告。
 
@@ -37,7 +39,7 @@ sh scripts/acceptance.sh --base main --head HEAD
 
 ## 开发检查
 
-开发环境可直接运行单项命令。需要 Node.js 24 或更新版本、npm、Git 和 Gitleaks 8.30.1；应用检查另需 PostgreSQL、Redis、测试配置和 Chromium。安装及本地服务说明见[运行说明](../runtime.md)。
+开发环境可直接运行单项命令。需要 Node.js 24 或更新版本、npm、Git 和 Gitleaks 8.30.1；应用检查另需 PostgreSQL、Redis、测试配置、k6 0.54.0 和 Chromium。k6 使用 PATH 中的程序或 `K6_BIN` 指定路径。安装及本地服务说明见[运行说明](../runtime.md)。
 
 ```sh
 npm ci --ignore-scripts --no-audit --no-fund
@@ -63,12 +65,27 @@ Gitleaks 使用 PATH 中的同名程序，也支持 `GITLEAKS_BIN`。从 [Gitlea
 | `npm run build` | 服务端与前端构建 |
 | `npm run test:e2e` | 桌面、平板和手机浏览器流程 |
 | `node scripts/checks/check.mjs --stage usage` | SEC-07 正常与结构失败调用的用量保存检查 |
+| `node scripts/checks/check.mjs --stage performance` | 三个接口的固定负载和关键词检索计划检查 |
 
 `scripts/checks/stages.mjs` 是唯一检查清单，npm、Make、容器及 CI 调用 `scripts/checks/check.mjs`。单项命令选择同一阶段，不重复维护断言和执行顺序。Node 使用测试事件采集结果，Playwright 输出 JSON 与原生 HTML；阶段日志保留原始诊断。
 
 SEC-07 用量检查默认包含在 Docker 验收、`make check` 和 CI 的 application 组中，也可通过上表的 usage 阶段单独执行。复用 `tests/evaluation/usage-recording.ts` 和本地 HTTP 模型替身，分别检查正常与结构失败时的用量，不调用真实模型。成功与结构失败场景都应保存模型已提供的用量，任一不符合判据时阶段及整轮验收失败，退出码为 1；报告显示两个场景的实际结果，附件保留本轮 `usage-recording.json`。首次现象及后续处理见[修复记录](../../reports/security-fix-log.md)。OpenAPI 定义与页面分别由 API 和浏览器阶段检查。
 
 单项执行需要保存报告时设置 `VERIFICATION_DIR`；直接运行 `node --import tsx tests/evaluation/usage-recording.ts` 也保留原入口，未设置 `VERIFICATION_DIR` 时使用 `EVALUATION_DIR` 或 `.local/verification/`。真实模型评测单独启用，方法见[AI 样例](ai-cases.md)。
+
+## 覆盖率门禁
+
+Node 原生覆盖率统计业务与集成测试实际加载的 `src/server/**` 源码，行覆盖率至少 90%，分支和函数覆盖率各至少 80%。配置集中在 `stages.mjs`，由 `npm test`、完整验收及 CI 复用。接口和浏览器阶段各自记录用例结果。
+
+覆盖率表显示 TypeScript 文件和未覆盖行。函数计数包含转译生成的辅助函数。未加载的启动入口、种子脚本与纯类型文件在统计范围之外。任一指标低于门槛时，Node 与统一检查均返回非零退出码。设置 `VERIFICATION_DIR` 可同时保存逐文件 LCOV 和 HTML 汇总。
+
+## 性能门禁
+
+`node scripts/checks/check.mjs --stage performance` 属于 application 检查组，完整验收和 CI 默认执行。任务提交、查询、新闻检索分别使用独立数据库与队列、5,000 篇合成新闻和本地替身，各以 4 VU 运行 20 秒。
+
+[门禁配置](../../scripts/performance/gate.json)要求响应状态全部符合合同，HTTP 错误率为 0，P95 小于 1,000 毫秒，吞吐至少每秒 4 个请求。选择性关键词检索的计数与分页计划都须使用新增的正文、摘要或译文索引，且不得对 `news` 执行 `Seq Scan`。任一阈值、查询计划或工具执行失败，统一检查返回非零退出码。
+
+设置 `VERIFICATION_DIR` 后，`performance/results.json` 保存运行参数、实际指标和完整查询计划，HTML 验收汇总提供附件入口。多档位压测和单 Worker 测量的运行方法见[性能报告](../../reports/bench.md)。
 
 ## 文件检查
 
