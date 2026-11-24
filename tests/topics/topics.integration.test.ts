@@ -42,6 +42,8 @@ test('TOPIC-01/04/06 artifacts keep versions and exact share snapshots with revo
     await assert.rejects(f.topics.save(topic.id,f.a,{title:'Invalid',kind:'mindmap',content:'No basis',structure:{label:'Invalid',sourceIds:[randomUUID()]},sourceIds:[f.first]}),{code:'DEPENDENCY_UNAVAILABLE'});
     await assert.rejects(f.topics.save(topic.id,f.b,{title:'No access',kind:'brief',content:'Invalid',sourceIds:[f.first]}),{code:'NOT_FOUND'});
     const preview=await f.topics.repo.preview(first.id,f.a.id);assert.ok(!JSON.stringify(preview).includes('Private sensitive note'));
+    const savedAt=await f.ctx.db.one<{created_at:Date}>('SELECT created_at FROM artifacts WHERE id=$1',[first.id]);
+    assert.equal(preview.createdAt,savedAt!.created_at.toISOString());
     const share=await f.topics.repo.share(first.id,f.a.id);assert.deepEqual(await f.topics.repo.publicShare(share.token),preview);
     await assert.rejects(f.topics.repo.revoke(share.token,f.b.id),{code:'NOT_FOUND'});await assert.rejects(f.topics.repo.share(first.id,f.b.id),{code:'NOT_FOUND'});
     await f.topics.repo.revoke(share.token,f.a.id);await f.topics.repo.revoke(share.token,f.a.id);await assert.rejects(f.topics.repo.publicShare(share.token),{code:'NOT_FOUND'});assert.deepEqual(await f.topics.repo.preview(first.id,f.a.id),preview);

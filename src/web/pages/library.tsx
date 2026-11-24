@@ -7,6 +7,7 @@ import {
   Empty,
   ErrorState,
   Feedback,
+  formatDate,
   Loading,
   PageHeading,
   Pagination,
@@ -75,7 +76,7 @@ export function LibraryPage() {
                       >
                         取消收藏
                       </button>
-                    ) : undefined
+                    ) : news.readAt ? (<time dateTime={news.readAt}>最近阅读：{formatDate(news.readAt, true)}</time>) : undefined
                   }
                 />
               ))

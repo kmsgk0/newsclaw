@@ -17,7 +17,7 @@ export async function register(page: Page) {
   await page.getByRole("link", { name: "创建账号", exact: true }).click();
   await page.getByLabel("用户名", { exact: true }).fill(username);
   await page.getByLabel("密码", { exact: true }).fill("ReadingFixture2026!");
-  await page.getByRole("button", { name: "创建账号并开始阅读" }).click();
+  await page.getByRole("button", { name: "创建账号" }).click();
   await expect(page).toHaveURL(/\/editor$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "我的编辑",

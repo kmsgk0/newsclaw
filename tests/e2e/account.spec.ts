@@ -86,17 +86,17 @@ test("ACC-01/02 UI-03 account errors explain the field or credentials and clear 
   await page.goto("/register");
   await page.getByLabel("用户名", { exact: true }).fill("ab");
   await page.getByLabel("密码", { exact: true }).fill("short");
-  await page.getByRole("button", { name: "创建账号并开始阅读" }).click();
+  await page.getByRole("button", { name: "创建账号" }).click();
   await expect(page.locator(".field-error").first()).toContainText(
     "用户名至少需要 3 个字符",
   );
   await page.getByLabel("用户名", { exact: true }).fill("api_reader_a");
-  await page.getByRole("button", { name: "创建账号并开始阅读" }).click();
+  await page.getByRole("button", { name: "创建账号" }).click();
   await expect(page.locator(".field-error")).toContainText(
     "密码至少需要 8 个字符",
   );
   await page.getByLabel("密码", { exact: true }).fill("correct-password");
-  await page.getByRole("button", { name: "创建账号并开始阅读" }).click();
+  await page.getByRole("button", { name: "创建账号" }).click();
   await expect(page.getByRole("alert")).toContainText("用户名已被使用");
   await expect(page.getByRole("alert").locator("details")).toHaveCount(0);
   await expect(page.getByLabel("用户名", { exact: true })).toHaveValue(

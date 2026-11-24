@@ -1,5 +1,46 @@
 import { test, expect } from "@playwright/test";
-import { navigate, fits } from "./helpers";
+import { navigate, fits, register } from "./helpers";
+import { randomUUID } from 'node:crypto';
+
+test('NEWS-05 recent reading shows its reading time and reopens the article',async({page})=>{
+  await register(page);
+  await page.goto('/');
+  const article=page.locator('.news-row h3 a').first();
+  const title=await article.innerText();
+  const recorded=page.waitForResponse(response=>/\/api\/v1\/news\/[^/]+\/read$/.test(new URL(response.url()).pathname) && response.request().method()==='POST');
+  await article.click();
+  expect((await recorded).status()).toBe(200);
+  const newsUrl=new URL(page.url()).pathname;
+  const history=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/v1/library');
+  await page.goto('/library?kind=history');
+  const item=(await (await history).json()).data.items.find((item:{id:string})=>newsUrl.endsWith(item.id));
+  const row=page.locator('.news-row').filter({has:page.getByRole('link',{name:title,exact:true})});
+  await expect(row.getByText('最近阅读：',{exact:false})).toHaveAttribute('datetime',item.readAt);
+  await row.getByRole('link',{name:title,exact:true}).click();
+  await expect(page).toHaveURL(new RegExp(`${newsUrl}$`));
+  await expect(page.locator('.article h1')).toHaveText(title);
+});
+
+test('NEWS-04 returning from an article restores list page and reading position',async({page})=>{
+  const payload=await (await page.request.get('/api/v1/news?pageSize=20')).json();
+  const article=payload.data.items[0];
+  const items=[...Array.from({length:12},(_,index)=>({...article,id:randomUUID(),title:`阅读位置材料 ${index+1}`})),article];
+  await page.route('**/api/v1/news?**',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({...payload,data:{...payload.data,items,page:2,pageSize:20,total:40}})}));
+  await page.goto('/?q=position&domain=人工智能&page=2');
+  const link=page.locator('.news-row h3 a').last();
+  await link.scrollIntoViewIfNeeded();
+  await link.focus();
+  await page.evaluate(()=>document.addEventListener('click',()=>sessionStorage.setItem('departure-position',String(scrollY)),{once:true,capture:true}));
+  await link.press('Enter');
+  const position=await page.evaluate(()=>Number(sessionStorage.getItem('departure-position')));
+  expect(position).toBeGreaterThan(200);
+  await expect(page.locator('.article h1')).toHaveText(article.title);
+  await page.getByRole('link',{name:'返回资讯中心',exact:true}).click();
+  await expect(page).toHaveURL(/page=2/);
+  await expect(page.getByRole('textbox',{name:'资讯关键词'})).toHaveValue('position');
+  await expect(link).toBeInViewport();
+  await expect.poll(async()=>Math.abs(await page.evaluate(()=>scrollY)-position)).toBeLessThan(24);
+});
 
 test("SEC-10 a stored malicious title remains escaped text in the actual news list", async ({ page }) => {
   await page.addInitScript(() => { Object.assign(window, { __newsclawXss: 0 }); });

@@ -134,6 +134,7 @@ test("NEWS-05 SKILL-02 TOPIC-01 TOPIC-04 favorite, skill, default topic, expanda
   expect(exported).toContain('## 来源');
   expect(exported).toContain('保存时间：');
   expect(exported).toContain('云杉');
+  const savedDate=(await page.locator('.saved-artifact > .content-meta').innerText()).replace(/^阅读成果 · /,'');
   await page.getByRole("button", { name: "预览并分享", exact: true }).click();
   await expect(page.getByRole("dialog")).toContainText("预览公开内容");
   await page
@@ -150,6 +151,7 @@ test("NEWS-05 SKILL-02 TOPIC-01 TOPIC-04 favorite, skill, default topic, expanda
   await share.click();
   await expect(page.locator(".share-article h1")).toContainText("云杉");
   await expect(page.locator(".share-article")).toContainText("云杉");
+  await expect(page.locator('.share-article > .content-meta').nth(1)).toHaveText(savedDate);
   await page.goBack();
   await page.getByRole("button", { name: /^阅读成果/ }).click();
   await page.getByRole("button", { name: "撤销分享", exact: true }).click();

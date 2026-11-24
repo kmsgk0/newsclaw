@@ -96,7 +96,7 @@ export function AuthPage({ register = false }: { register?: boolean }) {
           {operation.busy
             ? "正在处理"
             : register
-              ? "创建账号并开始阅读"
+              ? "创建账号"
               : "登录"}
         </button>
       </form>
