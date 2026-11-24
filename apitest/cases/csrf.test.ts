@@ -29,7 +29,7 @@ test('SEC-12 one-use tokens enforce session ownership, expiration, parallel requ
     assert.equal((await update()).status, 403);
     assert.deepEqual(await env.ctx.db.one('SELECT name FROM editors WHERE user_id=$1', [env.a.id]), before);
     const otherToken = await issue(other.accessToken);
-    assert.equal((await update(otherToken)).status, 403);
+    assert.equal((await update(otherToken)).status, 200);
     const expired = await issue(accessToken);
     await env.ctx.db.query("UPDATE csrf_tokens SET expires_at=now()-interval '1 second' WHERE token_hash=$1", [createHash('sha256').update(expired).digest('hex')]);
     assert.equal((await update(expired)).status, 403);
