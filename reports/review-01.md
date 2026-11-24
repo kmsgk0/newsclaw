@@ -35,4 +35,4 @@ node --import tsx --test --test-name-pattern='HTTP routes validate' tests/editor
 ✔ EDITOR/SKILL HTTP routes validate inputs, isolate resources and return actual SSE events
 ```
 
-本记录所列操作均符合预期。成员独立复现尚未执行。
+本记录所列操作均符合预期。手机端私人任务的权限检查见[日报实测](review-03.md#手机端日报)。

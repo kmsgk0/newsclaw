@@ -6,7 +6,16 @@
 
 2026-11-10 的处理结果见[问题修复记录](security-fix-log.md)与[修复评审](review-02.md)。以下保存首次检查版本的结果，包含修复前的红项。
 
-近期隔离验证见[安全门禁红绿对照](gate-red-green.md)、[技能审计回查](audit-recheck.md)、[SEC-08 四步实验](sec08-experiment.md)、[数据库变更](database-change.md)、[干净目录启动检查](boot-reproduce.md)、[流水线状态](pipeline.md)、[监控与告警检查](observability-check.md)、[压测报告](bench.md)和[课程要求对照](../docs/verification/course-08-10.md)。真实用户反馈尚未收集，记录入口见[反馈文件](feedback.md)。
+[应用验证](review-04.md)、[场景对应](traceability.md)、[阅读反馈](feedback.md)、[启动检查](boot-reproduce.md)、[监控与告警](observe-alert.md)、[性能报告](bench.md)、[数据库变更](database-change.md)、[主干流水线](pipeline.md)、[安全门禁演练](gate-red-green.md)、[技能审计回查](audit-recheck.md)及[SEC-08 四步实验](sec08-experiment.md)记录相应检查与结果。
+
+## 评审记录与合入对应
+
+| 记录 | 方法 | 对应版本 | 结论 |
+| --- | --- | --- | --- |
+| [review-01](review-01.md) | AI 自审、接口脚本 | 应用初版 `19e0b80` | 匿名入口响应及跨账号隔离符合判据。 |
+| [review-02](review-02.md) | AI 自审、隔离脚本、原文核对 | 用量与接口修复 `f5b7e50` | 失败用量留存、接口文档和本组日报对照通过。 |
+| [review-03](review-03.md) | 接口脚本与手机浏览器操作 | PR #11 的主干提交 `ec24c60` | 手机日报和跨账号 404 通过，能回查请求审计。 |
+| [review-04](review-04.md) | 自动检查、运行脚本和 diff 核对 | `00ad13316b2918b2f94d6c94253e748c66bebb3d` | 完整验收、安全门禁与隔离启动均通过。 |
 
 ## 首次检查
 
@@ -36,6 +45,6 @@
 
 失败调用的用量观察为单独入口，未计入常规用例数量。[SEC-07](security-precheck.md#sec-07-失败调用用量) 的红项为：模型结果结构校验失败时，已返回的用量未保存在日志和消息中；该检查版本尚未修复。
 
-[代码审查](../docs/verification/code-review.md)另外登记了 OpenAPI 文档入口返回 500、个人日报的一处兴趣分析超出来源材料两项问题，后续处理见本页上方的修复记录。备份与版本恢复结果见[运行说明](../docs/runtime.md#恢复检查结果)。成员独立复现的状态见[检查评审](review-01.md)。
+[代码审查](../docs/verification/code-review.md)另外登记了 OpenAPI 文档入口返回 500、个人日报的一处兴趣分析超出来源材料两项问题，后续处理见本页上方的修复记录。备份与版本恢复结果见[运行说明](../docs/runtime.md#恢复检查结果)。手机任务权限复核见[手机端日报](review-03.md#手机端日报)。
 
 各报告正文保留命令、关键输出和结论。完整 JSON、日志及生成报告保存在 Git 忽略的 `.local/verification/`。

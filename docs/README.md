@@ -13,7 +13,6 @@ NewsClaw 将公共新闻、个人编辑和持续跟进放在同一个阅读空�
 | 依赖的用途与许可 | [依赖说明](dependencies.md) |
 | 开发、Spec、提交与归档 | [开发指南](../CONTRIBUTING.md)、[项目规则](../AGENTS.md) |
 | Docker 验收、单项检查及 AI 样例 | [检查入口](verification/checks.md)、[安全检查方法](verification/security.md)、[AI 评测样例](verification/ai-cases.md) |
-| 第 8 至 10 课要求与当前证据 | [课程要求对照](verification/course-08-10.md) |
 | 实际检查结果与待修改项 | [正式报告](../reports/README.md)、[代码审查](verification/code-review.md)、[AI 评测结果](verification/ai-results.md) |
 
 ## 能力与场景索引
@@ -24,11 +23,17 @@ NewsClaw 将公共新闻、个人编辑和持续跟进放在同一个阅读空�
 | --- | --- | --- |
 | 账号与访问 | ACC-01 至 ACC-05 | [账号规格](../openspec/specs/account-access/spec.md) |
 | 共享新闻库 | NEWS-01 至 NEWS-06 | [新闻规格](../openspec/specs/news-library/spec.md) |
-| 个人编辑 | EDITOR-01 至 EDITOR-06 | [编辑规格](../openspec/specs/personal-editor/spec.md) |
+| 个人编辑 | EDITOR-01 至 EDITOR-08 | [编辑规格](../openspec/specs/personal-editor/spec.md) |
 | 阅读技能 | SKILL-01 至 SKILL-04 | [技能规格](../openspec/specs/editor-skills/spec.md) |
-| 专题与洞察 | TOPIC-01 至 TOPIC-06 | [专题规格](../openspec/specs/topics-and-insights/spec.md) |
+| 专题与洞察 | TOPIC-01 至 TOPIC-08 | [专题规格](../openspec/specs/topics-and-insights/spec.md) |
 | 运行与恢复 | OPS-01 至 OPS-06 | [运行规格](../openspec/specs/runtime-operations/spec.md) |
-| 阅读界面 | UI-01 至 UI-04 | [界面规格](../openspec/specs/reading-interface/spec.md) |
+| 阅读界面 | UI-01 至 UI-05 | [界面规格](../openspec/specs/reading-interface/spec.md) |
+| 浏览器与请求安全 | SEC-09 至 SEC-14 | [请求安全规格](../openspec/specs/browser-request-security/spec.md) |
+| 请求与技能审计 | AUD-01 至 AUD-04 | [审计规格](../openspec/specs/request-audit/spec.md) |
+| 运行观测 | OBS-01 至 OBS-02 | [观测规格](../openspec/specs/runtime-observability/spec.md) |
+| 性能验证 | PERF-01 至 PERF-04 | [性能规格](../openspec/specs/performance-verification/spec.md) |
+| 工程检查与证据 | STD-01 至 STD-11 | [工程规格](../openspec/specs/engineering-standards/spec.md) |
+| 贡献与交付 | FLOW-01 至 FLOW-13 | [贡献规格](../openspec/specs/contribution-workflow/spec.md) |
 
 ## 工程规范
 
@@ -48,3 +53,5 @@ NewsClaw 将公共新闻、个人编辑和持续跟进放在同一个阅读空�
 | 阅读界面 | 所有业务接口 | [阅读界面](../openspec/changes/archive/2026-11-09-reading-interface/proposal.md)、[任务](../openspec/changes/archive/2026-11-09-reading-interface/tasks.md) |
 | 自动验收与报告 | 应用及已有检查 | [自动验收](../openspec/changes/archive/2026-11-09-automated-acceptance/proposal.md)、[任务](../openspec/changes/archive/2026-11-09-automated-acceptance/tasks.md) |
 | 应用问题修复 | 首次检查及自动验收 | [用量、文档与日报](../openspec/changes/archive/2026-11-10-application-corrections/proposal.md)、[任务](../openspec/changes/archive/2026-11-10-application-corrections/tasks.md) |
+| 覆盖率与性能门禁 | 完整验收入口 | [性能门禁](../openspec/changes/archive/2026-11-24-performance-gates/proposal.md)、[任务](../openspec/changes/archive/2026-11-24-performance-gates/tasks.md) |
+| 应用验证与反馈 | 阅读流程与运行验证 | [应用验证](../openspec/changes/archive/2026-11-24-verification-completion/proposal.md)、[任务](../openspec/changes/archive/2026-11-24-verification-completion/tasks.md) |

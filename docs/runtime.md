@@ -34,7 +34,7 @@ API 启动前自动迁移并初始化公共信源；已有来源配置保持不�
 | `APP_ORIGIN`、`COOKIE_SECURE` | 网页来源及安全 Cookie，默认 localhost:3100 和 true |
 | `MODEL_TIMEOUT_MS` | 单次模型请求超时，默认 120000 毫秒 |
 | `TASK_ATTEMPTS`、`TASK_BACKOFF_MS` | 一轮最多三次业务尝试，指数退避从 2000 毫秒起并带抖动 |
-| `DB_POOL_MAX` | 每个应用进程的数据库连接池上限，默认 4，可设为 1–100；多进程时按各进程之和规划数据库连接容量，负载取舍见[性能记录](../reports/bench.md) |
+| `DB_POOL_MAX` | 每个应用进程的数据库连接池上限，默认 12，可设为 1–100；多进程时按各进程之和规划数据库连接容量，压测结果见[性能记录](../reports/bench.md) |
 | `QUEUE_PREFIX` | 队列命名空间，测试使用独立值 |
 | `APP_VERSION` | 响应及运行日志中的版本标识 |
 | `SCHEDULE_ENABLED` | Worker 默认启用定时任务，设为 false 可运行仅处理主动提交的消费者 |
