@@ -1,5 +1,5 @@
 import { ChevronDown, Edit3, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { startTransition, useState } from "react";
 import { useSearchParams } from "react-router";
 import { api, useOperation, useResource } from "../../api";
 import { ChatPanel } from "../../components/chat";
@@ -53,10 +53,12 @@ export function EditorPage() {
     if (id) next.set('conversation', id);
     else {
       next.delete('conversation');
-      setNewKey((value) => value + 1);
     }
-    setParams(next);
-    setListOpen(false);
+    startTransition(() => {
+      if (!id) setNewKey((value) => value + 1);
+      setParams(next);
+      setListOpen(false);
+    });
   }
   function startMaterial(nextContext?: MaterialContext) {
     const next = new URLSearchParams(params);
@@ -69,9 +71,11 @@ export function EditorPage() {
       next.set('contextKind', nextContext.kind);
       if (nextContext.id) next.set('contextId', nextContext.id);
     }
-    setParams(next);
-    setNewKey((value) => value + 1);
-    setListOpen(false);
+    startTransition(() => {
+      setParams(next);
+      setNewKey((value) => value + 1);
+      setListOpen(false);
+    });
   }
   function created(id: string) {
     const next = new URLSearchParams(params);

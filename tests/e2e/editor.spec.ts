@@ -2,6 +2,48 @@ import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { register, fits } from "./helpers";
 
+test("UI-04 material dialog supports keyboard dismissal and returns focus", async ({page}) => {
+  await register(page);
+  const trigger=page.locator('.chat-header').getByRole('button',{name:'选择阅读材料',exact:true});
+  await trigger.focus();await trigger.press('Enter');
+  const dialog=page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  expect(await dialog.evaluate(element=>element.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(dialog).not.toBeVisible();
+  await expect(trigger).toBeFocused();
+});
+
+test("UI-05 a late conversation response cannot populate a new conversation", async ({page}) => {
+  await register(page);
+  const id=randomUUID();
+  let release!:()=>void;
+  let requested!:()=>void;
+  let fulfilled!:()=>void;
+  const gate=new Promise<void>(resolve=>{release=resolve;});
+  const started=new Promise<void>(resolve=>{requested=resolve;});
+  const completed=new Promise<void>(resolve=>{fulfilled=resolve;});
+  let first=true;
+  await page.route(`**/api/v1/conversations/${id}`,async route=>{
+    if(first){first=false;requested();await gate;}
+    await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({code:'OK',data:{id,title:'原会话',context:null,messages:[{id:randomUUID(),role:'user',content:'原会话的内容',status:'completed',sources:[],createdAt:'2026-11-24T00:00:00Z'}]}})});
+    fulfilled();
+  });
+  await page.goto(`/editor?conversation=${id}`);
+  await started;
+  await page.getByRole('button',{name:'新建会话',exact:true}).click();
+  await expect(page).not.toHaveURL(/conversation=/);
+  await expect(page.getByRole('heading',{name:'想了解什么新闻？',exact:true})).toBeVisible();
+  const input=page.getByLabel('向编辑提问',{exact:true});
+  await input.fill('新会话草稿');
+  release();await completed;
+  await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+  await expect(page.locator('.chat-message')).toHaveCount(0);
+  await expect(input).toHaveValue('新会话草稿');
+  await page.goto(`/editor?conversation=${id}`);
+  await expect(page.locator('.chat-message.user .prose')).toHaveText('原会话的内容');
+});
+
 test("UI-03 EDITOR-03 composer, material selection, citations and separate conversations", async ({
   page,
 }, info) => {
@@ -133,6 +175,38 @@ test("EDITOR-03 UI-03 retrieval failure keeps its cause after reload and clears 
     page.locator(".chat-message.assistant").getByRole("alert"),
   ).toHaveCount(0);
   await fits(page);
+});
+
+test("EDITOR-03 stopped streamed request can retry without duplicating the question", async ({
+  page,
+}, info) => {
+  await register(page);
+  const question = "scroll-reading-fixture 请说明材料中的测试条件。";
+  await page.getByLabel("向编辑提问", { exact: true }).fill(question);
+  await page.getByRole("button", { name: "发送问题", exact: true }).click();
+  const answer = page.locator(".chat-message.assistant");
+  await expect(answer).toBeVisible();
+  const cancelled = page.waitForEvent("requestfailed", request => /\/conversations\/[^/]+\/messages$/.test(new URL(request.url()).pathname));
+  await page.getByRole("button", { name: "停止回答", exact: true }).click();
+  await cancelled;
+  await page.waitForLoadState("networkidle");
+  await expect(answer.locator(".tag.red")).toHaveText("未完成");
+  await expect(answer.getByRole("alert")).toBeVisible();
+  await expect(page.getByRole("button", { name: "重试回答", exact: true })).toBeEnabled();
+  await expect(page.locator(".chat-message.user .prose")).toHaveText(question);
+  await page.screenshot({ path: info.outputPath("stopped-answer.png") });
+  await page.reload();
+  await expect(answer.locator(".tag.red")).toHaveText("未完成");
+  await page.getByRole("button", { name: "重试回答", exact: true }).click();
+  await expect(answer.locator(".prose")).toContainText("正文结束，保留来源。");
+  await expect(page.getByRole("button", { name: "发送问题", exact: true })).toBeVisible();
+  await expect(answer.getByRole("alert")).toHaveCount(0);
+  await expect(answer.locator(".tag.red")).toHaveCount(0);
+  await expect(page.locator(".chat-message.user")).toHaveCount(1);
+  await expect(answer).toHaveCount(1);
+  await page.reload();
+  await expect(answer.locator(".prose")).toContainText("正文结束，保留来源。");
+  await expect(page.locator(".chat-message.user .prose")).toHaveText(question);
 });
 
 test("UI-02 cited sources stay visible while other retrieved material is collapsed", async ({

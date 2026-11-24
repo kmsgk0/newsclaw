@@ -5,7 +5,11 @@ test('EDITOR-08 answer feedback survives reopening, validates citation selection
   await register(page);
   await page.locator('.chat-header').getByRole('button',{name:'选择阅读材料',exact:true}).click();
   await page.getByRole('dialog').locator('.material-result').first().click();
-  await page.getByLabel('向编辑提问',{exact:true}).fill('请概括当前报道。');
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  const question=page.getByLabel('向编辑提问',{exact:true});
+  await question.fill('请概括当前报道。');
+  await expect(page.locator('.chat-header')).toContainText('新闻：');
+  await expect(question).toHaveValue('请概括当前报道。');
   await page.getByRole('button',{name:'发送问题',exact:true}).click();
   const answer=page.locator('.chat-message.assistant');
   await answer.getByRole('button',{name:'有用',exact:true}).click();

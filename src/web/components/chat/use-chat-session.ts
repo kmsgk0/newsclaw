@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api, ApiError, authenticatedFetch, useResource } from "../../api";
 import { useAuth } from "../../auth";
 import type { AnswerFeedback, Artifact, Citation, Conversation, Editor, MaterialContext, Message, PersonalSkill } from "../../types";
@@ -50,7 +50,7 @@ export function useChatSession({ context, conversationId, initialSkillId = '', o
     setLocalContext(next);
   }, [onReset]);
   const previousProps = useRef({ conversationId, contextKind, contextId });
-  useEffect(() => {
+  useLayoutEffect(() => {
     const previous = previousProps.current;
     previousProps.current = { conversationId, contextKind, contextId };
     const conversationChanged = previous.conversationId !== conversationId;
@@ -73,7 +73,6 @@ export function useChatSession({ context, conversationId, initialSkillId = '', o
   );
   function reset(next?: MaterialContext) {
     if (onContextChange) {
-      onReset();
       onContextChange(next);
       return;
     }
@@ -268,7 +267,7 @@ export function useChatSession({ context, conversationId, initialSkillId = '', o
         setBusy(false);
         setTool("");
         controller.current = null;
-        conversation.reload();
+        if (!abort.signal.aborted) conversation.reload();
       }
     }
   }
