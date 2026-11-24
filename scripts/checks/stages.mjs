@@ -15,12 +15,13 @@ export function createStages({ base = 'main', head = 'HEAD' } = {}) {
     node('security-tools', '安全工具行为', 'security', ['--test', 'scripts/checks/test-security.mjs'], 'node'),
     node('lint', '代码检查', 'application', ['node_modules/eslint/bin/eslint.js', 'src', 'tests', 'apitest', 'vite.config.ts', 'playwright.config.ts']),
     node('types', '类型检查', 'application', ['node_modules/typescript/bin/tsc', '--noEmit']),
-    node('unit', '业务与集成测试', 'application', ['--import', 'tsx', '--test', 'tests/**/*.test.ts'], 'node'),
+    node('unit', '业务与集成测试', 'application', ['--import', 'tsx', '--experimental-test-coverage', '--test-coverage-include=src/server/**', '--test-coverage-lines=90', '--test-coverage-branches=80', '--test-coverage-functions=80', '--test', 'tests/**/*.test.ts'], 'node'),
     node('api', 'HTTP 与任务恢复', 'application', ['--import', 'tsx', '--test', '--test-concurrency=1', 'apitest/cases/*.test.ts'], 'node'),
     node('server-build', '服务端构建', 'application', ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.server.json']),
     node('web-build', '网页构建', 'application', ['node_modules/vite/bin/vite.js', 'build']),
     node('browser', '浏览器阅读流程', 'application', ['node_modules/@playwright/test/cli.js', 'test'], 'playwright'),
     node('usage', 'SEC-07 模型调用用量', 'application', ['--import', 'tsx', '--test', 'tests/evaluation/usage-recording.ts'], 'node'),
+    node('performance', '接口性能门禁', 'application', ['--import', 'tsx', 'scripts/performance/check.ts']),
   ];
 }
 

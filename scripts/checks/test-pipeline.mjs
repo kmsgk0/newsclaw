@@ -74,6 +74,20 @@ test('STD-09 failed usage checks keep their current-run evidence linked in JSON 
   assert.match(readFileSync(path.join(f.outputDir, 'index.html'), 'utf8'), /href="usage-recording\.json"/);
 });
 
+test('STD-10 insufficient coverage fails the stage even when every assertion passes', async t => {
+  const f = fixture(t);
+  writeFileSync(path.join(f.cwd, 'business.mjs'), 'export const value=42; export function unused(){return 0;}\n');
+  writeFileSync(path.join(f.cwd, 'coverage.test.mjs'), "import test from 'node:test';import assert from 'node:assert/strict';import {value} from './business.mjs';test('loaded business value',()=>assert.equal(value,42));\n");
+  const report = await runChecks({ ...f, stages: [{ id: 'unit', name: 'Coverage', group: 'application', command: process.execPath,
+    args: ['--experimental-test-coverage', '--test-coverage-include=business.mjs', '--test-coverage-functions=100', '--test', 'coverage.test.mjs'], result: 'node' }] });
+  assert.equal(report.status, 'failed');
+  assert.equal(report.stages[0].exitCode, 1);
+  assert.equal(report.stages[0].tests.length, 1);
+  assert.equal(report.stages[0].tests[0].status, 'passed');
+  assert.ok(report.artifacts.some(item => item.path === 'unit-coverage.lcov'));
+  assert.match(readFileSync(path.join(f.outputDir, 'unit-coverage.lcov'), 'utf8'), /SF:.*business\.mjs/);
+});
+
 test('FLOW-11 cleanup failure turns a completed run into a failed report', async t => {
   const f = fixture(t);
   await runChecks({ ...f, stages: [stage('ok', '')] });

@@ -42,6 +42,9 @@ async function runCommand(stage, cwd, outputDir, signal) {
   if (outputDir && stage.result === 'node') {
     resultFile = path.join(outputDir, `${stage.id}.jsonl`);
     args.unshift('--test-reporter=spec', `--test-reporter=${reporter}`, '--test-reporter-destination=stdout', `--test-reporter-destination=${resultFile}`);
+    if (stage.args.includes('--experimental-test-coverage')) {
+      args.unshift('--test-reporter=lcov', `--test-reporter-destination=${path.join(outputDir, `${stage.id}-coverage.lcov`)}`);
+    }
   }
   const env = { ...process.env, OPENSPEC_TELEMETRY: '0', GIT_OPTIONAL_LOCKS: '0' };
   delete env.NODE_TEST_CONTEXT;
@@ -101,7 +104,7 @@ async function collectBrowser(outputDir, cwd) {
 }
 
 async function collectArtifacts(outputDir, report) {
-  for (const [name, file] of [['浏览器详细报告', 'browser/index.html'], ['异步检查数据', 'async-results.json'], ['接口检查数据', 'security-api-results.json'], ['SEC-07 用量检查数据', 'usage-recording.json']]) {
+  for (const [name, file] of [['浏览器详细报告', 'browser/index.html'], ['异步检查数据', 'async-results.json'], ['接口检查数据', 'security-api-results.json'], ['SEC-07 用量检查数据', 'usage-recording.json'], ['业务源码覆盖率', 'unit-coverage.lcov'], ['接口性能门禁数据', 'performance/results.json']]) {
     if (existsSync(path.join(outputDir, file))) report.artifacts.push({ name, path: file });
   }
   if (existsSync(path.join(outputDir, 'async-results.json'))) report.async = await readJSON(path.join(outputDir, 'async-results.json'));

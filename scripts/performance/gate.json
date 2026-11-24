@@ -1,0 +1,10 @@
+{
+  "vus": 4,
+  "duration": "20s",
+  "thresholds": {
+    "checks": ["rate==1"],
+    "http_req_failed": ["rate==0"],
+    "http_req_duration": ["p(95)<1000"],
+    "http_reqs": ["rate>=4"]
+  }
+}

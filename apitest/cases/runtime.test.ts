@@ -42,7 +42,7 @@ test('OPS-02/03 stopped worker recovery, concurrent duplicate requests and recei
   const env=await createAPIEnvironment({seed:false});let runtime:Awaited<ReturnType<typeof startWorker>>|undefined;
   try{
     const session=await env.auth.login({username:env.admin.username,password:'correct-password'});
-    const duplicates=await Promise.all(Array.from({length:6},()=>submit(env.baseUrl,env.source.id,session.accessToken,'same-operation')));
+    const duplicates=await Promise.all(Array.from({length:20},()=>submit(env.baseUrl,env.source.id,session.accessToken,'same-operation')));
     assert.ok(duplicates.every(x=>x.status===202));assert.equal(new Set(duplicates.map(x=>x.value.data.taskId)).size,1);
     const taskId=duplicates[0].value.data.taskId;
     assert.equal((await env.ctx.db.one<TaskRecord>('SELECT * FROM tasks WHERE id=$1',[taskId]))!.attempts,0);
@@ -57,7 +57,7 @@ test('OPS-02/03 stopped worker recovery, concurrent duplicate requests and recei
     await env.ctx.db.query('CREATE TRIGGER reject_outbox BEFORE INSERT ON task_outbox FOR EACH ROW EXECUTE FUNCTION reject_outbox()');
     const failed=await submit(env.baseUrl,env.source.id,session.accessToken,'rollback-operation');assert.equal(failed.status,500);
     assert.equal((await env.ctx.db.query("SELECT id FROM tasks WHERE operation_id='rollback-operation'")).length,0);
-    evidence.recovery={duplicateRequests:6,distinctTasks:1,newsRecords:1,modelCallsAfterDuplicateDelivery:env.state.modelCalls,receiveRollbackHttp:500,orphanTasks:0};await save();
+    evidence.recovery={duplicateRequests:20,distinctTasks:1,newsRecords:1,modelCallsAfterDuplicateDelivery:env.state.modelCalls,receiveRollbackHttp:500,orphanTasks:0};await save();
   }finally{await runtime?.close();await env.cleanup();}
 });
 
