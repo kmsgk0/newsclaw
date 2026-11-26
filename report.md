@@ -2,7 +2,7 @@
 
 - **项目**：NewsClaw（个性化 AI 新闻阅读平台） · **Harness**：Codex · **日期**：2026-11-25
 - **地址**：仓库 `https://github.com/kmsgk0/newsclaw` · 在线 `https://newsclaw.xwysyy.com` · 支撑记录 [reports/README.md](reports/README.md)
-- **演示视频下载地址**：`待补充（录屏上传网盘后填入）`
+- **演示视频下载地址**：[https://disk.pku.edu.cn/link/AAD6A67C43638E4E748A008858385C2D03](https://disk.pku.edu.cn/link/AAD6A67C43638E4E748A008858385C2D03)（北大网盘，`NewsClaw-demo.mp4`）
 - **成员与分工**：
   - **李嘉泽**：需求规约、核心业务与异步任务引擎、容器验收、覆盖率与性能门禁及检索索引优化（`openspec/`、`src/server/runtime/`、`scripts/checks/`、`scripts/performance/`；`reports/review-01.md`、`review-02.md`、`review-04.md`、`bench.md`）
   - **杨艺欣**：浏览器请求安全与请求审计、监控告警与压测初版、聊天组件重构、自动生成/专题进展/导出/反馈功能与审查修复（`src/server/modules/audit/`、`src/web/components/chat/`、`monitoring/`、`tests/e2e/`；`reports/audit-recheck.md`、`sec08-experiment.md`、`review-fixes.md`、`reading-workflows.md`）
@@ -39,7 +39,7 @@ NewsClaw 面向持续跟踪事件的读者，解决信息分散、难以核对�
 1. **AI 代码阅读与接口脚本**（`tests/editor/editor-api.test.ts`）：查六个匿名私人入口、公开对照及双账号交叉读写四类私人对象；判据为匿名 401、公开 200、跨账号 404；实测全通过，用例常驻。[reports/review-01.md](reports/review-01.md)
 2. **独立 AI 审查、隔离脚本与原文对照**：查首次检查暴露的 SEC-07 失败用量丢失、OpenAPI 500、日报过度推断三项修复（`f5b7e50`）；判据为失败调用保留用量、接口页 200、兴趣关联来自原文摘录；实测 17 项回归、2 项用量对照与 3 项日报用例全绿（用量由 1 过 1 败转为 2 过 0 败，见 [reports/security-fix-log.md](reports/security-fix-log.md)）。[reports/review-02.md](reports/review-02.md)
 3. **接口脚本与手机视口浏览器走查**：查 `ec24c60` 账号隔离、CSRF 校验、无效引用拒发及 390 × 844 手机日报流程；判据为匿名 401、跨账号 404、缺令牌 403、手机提交 202 并轮询成功且可查审计；三组接口脚本退出 0，手机链路通过。[reports/review-03.md](reports/review-03.md)
-4. **全量脚本门禁、运行脚本与 diff 核对**：查 `00ad133` 的 15 阶段全量验收（286 条全绿）、干净启动及承接 [reports/feedback.md](reports/feedback.md) 的六项交互与文案修正；判据为全量退出 0 且修正进入回归；全部通过。[reports/review-04.md](reports/review-04.md)
+4. **全量脚本门禁、运行脚本与 diff 核对**：查 `00ad133` 的 15 阶段全量验收（286 条全绿）、干净启动及承接 [reports/feedback.md](reports/feedback.md) 的三项已修正反馈；判据为全量退出 0 且修正进入回归；全部通过。[reports/review-04.md](reports/review-04.md)
 
 四份评审由 AI 审查与自动化脚本完成，第 2、4 份（另附专项修复与重构记录 [reports/review-fixes.md](reports/review-fixes.md)）保留了发现缺陷、修复并固化回归的完整闭环。
 
@@ -60,8 +60,8 @@ npm run test:api
 
 - **CI 与主干保护**：`main` 强制通过 `Repository checks`、`Security checks`、`Application checks` 后方可合入并构建镜像（[.github/workflows/pr-checks.yml](.github/workflows/pr-checks.yml)）；主干 `c3111c2` 的[构建 #19](https://github.com/kmsgk0/newsclaw/actions/runs/45424494014) 四个作业全绿。[reports/pipeline.md](reports/pipeline.md)
 - **先红后绿证据**：[PR #12](https://github.com/kmsgk0/newsclaw/pull/12) 将 [apitest/cases/csrf.test.ts](apitest/cases/csrf.test.ts) 第 32 行 `403` 改为 `200`（`11b8d1c`），运行 [45420727899](https://github.com/kmsgk0/newsclaw/actions/runs/45420727899) 红灯阻断（`Security` 与 `Application` 失败、镜像跳过、`BLOCKED`）；`f7ff42e` 恢复后运行 [45421376670](https://github.com/kmsgk0/newsclaw/actions/runs/45421376670) 全绿解阻。[reports/gate-red-green.md](reports/gate-red-green.md)
-- **验证命令与结果**：`make check` 15 阶段 286 条全绿（服务端覆盖率行 93.96%、分支 86.33%、函数 86.38%，退出 0）；`make check-security` 密钥 0 命中、高危依赖 0 条、注入/CSRF/XSS 反例全绿（退出 0）；Docker 复跑用 `sh scripts/acceptance.sh`。
-- **在线与启动闭环**：公网运行于 `https://newsclaw.xwysyy.com`（`c3111c2`）；干净启动与手机四步闭环（登录、提交 202、轮询成功、跨账号 404 及审计回查）用 `node scripts/verification/runtime.mjs verify` 复现，见 [reports/boot-reproduce.md](reports/boot-reproduce.md)。
+- **验证命令与结果**：`make check` 15 阶段 286 条全绿（`00ad133` 实测服务端覆盖率行 93.96%、分支 86.33%、函数 86.38%，退出 0）；`make check-security` 密钥 0 命中、高危依赖 0 条、注入/CSRF/XSS 反例全绿（退出 0）；Docker 复跑用 `sh scripts/acceptance.sh`。
+- **在线、启动闭环与录屏**：公网运行于 `https://newsclaw.xwysyy.com`（`c3111c2`）；干净启动与手机四步闭环（登录、提交 202、轮询成功、跨账号 404 及审计回查）用 `node scripts/verification/runtime.mjs verify` 复现，见 [reports/boot-reproduce.md](reports/boot-reproduce.md)；文首录屏依次实跑第 4、5 节五条命令并演示在线功能。
 
 ## 6. 复盘
 

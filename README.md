@@ -27,7 +27,7 @@
 | 架构与数据关系 | [系统架构](docs/architecture.md) |
 | 业务约定与阶段变更 | [现行规格](openspec/specs/)、[变更目录](openspec/changes/) |
 | 开发规则与流程 | [AGENTS.md](AGENTS.md)、[开发指南](CONTRIBUTING.md) |
-| 自动检查与正式记录 | [项目报告](report.md)、[检查入口](docs/verification/checks.md)、[报告索引](reports/README.md) |
+| 自动检查与正式记录 | [项目报告](report.md)（[PDF](report.pdf)）、[检查入口](docs/verification/checks.md)、[报告索引](reports/README.md) |
 
 ## 运行
 
