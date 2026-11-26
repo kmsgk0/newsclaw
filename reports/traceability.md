@@ -264,7 +264,7 @@
 | FLOW-12 · 安全反例失败 | [test-security.mjs](../scripts/checks/test-security.mjs)、[csrf.test.ts](../apitest/cases/csrf.test.ts)、[reports/gate-red-green.md](../reports/gate-red-green.md)；密钥、高危及token重放反例有失败断言，历史门禁故意破坏记录分开保留。 | 工程检查、历史 |
 | FLOW-12 · 安全门禁缺少隔离依赖 | [Makefile](../Makefile)、[check.mjs](../scripts/checks/check.mjs)；隔离数据库/队列/浏览器不可用须让make check-security实际失败；现有入口无跳过分支，本次未执行该故障。 | 工程检查待运行 |
 | FLOW-12 · main 推送与 PR 使用同一安全门禁 | [.github/workflows/pr-checks.yml](../.github/workflows/pr-checks.yml)；push/main和pull_request/main同用三组检查及make check-security，提交组取事件base/head。 | 核查 |
-| FLOW-13 · 推送后构建 | [.github/workflows/pr-checks.yml](../.github/workflows/pr-checks.yml)、[reports/pipeline.md](../reports/pipeline.md)；image-build依赖三组检查，镜像标签取BUILD_SHA；构建 #14 的作业与镜像标识见流水线记录。 | 核查、历史 |
+| FLOW-13 · 推送后构建 | [.github/workflows/pr-checks.yml](../.github/workflows/pr-checks.yml)、[reports/pipeline.md](../reports/pipeline.md)；image-build依赖三组检查，镜像标签取BUILD_SHA；构建 #19 的作业与镜像标识见流水线记录。 | 核查、历史 |
 
 ## engineering-standards
 

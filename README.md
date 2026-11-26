@@ -27,11 +27,13 @@
 | 架构与数据关系 | [系统架构](docs/architecture.md) |
 | 业务约定与阶段变更 | [现行规格](openspec/specs/)、[变更目录](openspec/changes/) |
 | 开发规则与流程 | [AGENTS.md](AGENTS.md)、[开发指南](CONTRIBUTING.md) |
-| 自动检查与正式记录 | [检查入口](docs/verification/checks.md)、[报告索引](reports/README.md) |
+| 自动检查与正式记录 | [项目报告](report.md)（[PDF](report.pdf)）、[检查入口](docs/verification/checks.md)、[报告索引](reports/README.md) |
 
 ## 运行
 
-准备 Docker Compose；本地开发另需 Node.js 24 或更新版本。克隆后复制配置示例，填写数据库口令、对话及嵌入服务配置：
+在线体验地址：`https://newsclaw.xwysyy.com`（接口文档位于 `/docs/api`）。
+
+本地运行需准备 Docker Compose；本地开发另需 Node.js 24 或更新版本。克隆后复制配置示例，填写数据库口令、对话及嵌入服务配置：
 
 ```sh
 git clone https://github.com/kmsgk0/newsclaw.git
