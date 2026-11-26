@@ -8,7 +8,7 @@
 
 - 重写仓库根目录 [report.md](../../../report.md)，统一项目头部信息、成员分工及六节正文，引用对应 `reports/` 记录与可复跑命令。
 - 同步 [reports/pipeline.md](../../../reports/pipeline.md) 至当前主干提交 `c3111c2fd58d3ba924412f07098a3e0feddd57ee` 的构建记录与镜像标签。
-- 在 [README.md](../../../README.md) 与 [docs/README.md](../../../docs/README.md) 补充在线访问入口与项目报告链接。
+- 在 [README.md](../../../README.md) 补充在线访问入口与项目报告链接，在 [docs/README.md](../../../docs/README.md) 补充项目报告链接。
 - 预留演示录屏地址及成稿排版核对任务，完成后统一归档。
 
 ## Capabilities
